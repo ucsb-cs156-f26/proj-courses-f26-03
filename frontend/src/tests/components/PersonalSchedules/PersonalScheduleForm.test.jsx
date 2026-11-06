@@ -192,11 +192,11 @@ describe("PersonalScheduleForm tests", () => {
     const nameInput = screen.getByTestId("PersonalScheduleForm-name");
     const submitButton = screen.getByTestId("PersonalScheduleForm-submit");
 
-    fireEvent.change(nameInput, { target: { value: "ThisNameIsWayTooLong" } });
+    fireEvent.change(nameInput, { target: { value: "ThisNameIsWayTooLongLongLong" } });
     fireEvent.click(submitButton);
 
     expect(
-      await screen.findByText("Max length 15 characters"),
+      await screen.findByText("Max length 25 characters"),
     ).toBeInTheDocument();
   });
 
