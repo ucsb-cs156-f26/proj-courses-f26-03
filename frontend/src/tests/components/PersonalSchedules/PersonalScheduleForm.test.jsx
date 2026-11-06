@@ -192,7 +192,9 @@ describe("PersonalScheduleForm tests", () => {
     const nameInput = screen.getByTestId("PersonalScheduleForm-name");
     const submitButton = screen.getByTestId("PersonalScheduleForm-submit");
 
-    fireEvent.change(nameInput, { target: { value: "ThisNameIsWayTooLongLongLong" } });
+    fireEvent.change(nameInput, {
+      target: { value: "ThisNameIsWayTooLongLongLong" },
+    });
     fireEvent.click(submitButton);
 
     expect(
