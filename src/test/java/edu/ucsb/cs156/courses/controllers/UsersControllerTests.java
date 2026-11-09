@@ -29,6 +29,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @WebMvcTest(controllers = UsersController.class)
 @Import(TestConfig.class)
@@ -217,64 +218,109 @@ public class UsersControllerTests extends ControllerTestCase {
     assertEquals(expectedResponseAsJson, actualResponse);
   }
 
+  private MockHttpServletRequestBuilder searchRequest(String searchString) {
+    return get("/api/admin/users/q")
+        .param("searchString", searchString)
+        .param("page", "0")
+        .param("pageSize", "5")
+        .param("sortField", "email")
+        .param("sortDirection", "ASC");
+  }
+
   @Test
   public void users_by_name_and_email__logged_out() throws Exception {
-    mockMvc
-        .perform(get("/api/admin/users/q").param("searchString", "abc"))
-        .andExpect(status().is(403));
+    mockMvc.perform(searchRequest("abc")).andExpect(status().is(403));
   }
 
   @WithMockUser(roles = {"USER"})
   @Test
   public void users_by_name_and_email__user_logged_in() throws Exception {
-    mockMvc
-        .perform(get("/api/admin/users/q").param("searchString", "abc"))
-        .andExpect(status().is(403));
+    mockMvc.perform(searchRequest("abc")).andExpect(status().is(403));
   }
 
   @WithMockUser(roles = {"ADMIN", "USER"})
   @Test
-  public void users_by_name_and_email__queries_email_and_names_with_search_string()
-      throws Exception {
+  public void users_by_name_and_email__returns_page_of_matches() throws Exception {
     User u = User.builder().id(1L).email("cgaucho@ucsb.edu").fullName("Chris Gaucho").build();
+    Page<User> expectedPage = new PageImpl<User>(List.of(u), pageRequest_0_5_ASC, 1);
     when(userRepository
             .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
-                "gaucho", "gaucho", "gaucho", "gaucho"))
-        .thenReturn(List.of(u));
-    String expectedJson = mapper.writeValueAsString(List.of(u));
+                "gaucho", "gaucho", "gaucho", "gaucho", pageRequest_0_5_ASC))
+        .thenReturn(expectedPage);
+    String expectedJson = objectMapper.writeValueAsString(expectedPage);
 
     MvcResult response =
-        mockMvc
-            .perform(get("/api/admin/users/q").param("searchString", "gaucho"))
-            .andExpect(status().isOk())
-            .andReturn();
+        mockMvc.perform(searchRequest("gaucho")).andExpect(status().isOk()).andReturn();
 
     verify(userRepository, times(1))
         .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
-            "gaucho", "gaucho", "gaucho", "gaucho");
+            "gaucho", "gaucho", "gaucho", "gaucho", pageRequest_0_5_ASC);
     assertEquals(expectedJson, response.getResponse().getContentAsString());
   }
 
   @WithMockUser(roles = {"ADMIN", "USER"})
   @Test
-  public void users_by_name_and_email__no_match_returns_empty_list() throws Exception {
+  public void users_by_name_and_email__uses_requested_page_and_sort_direction() throws Exception {
+    PageRequest expectedRequest = PageRequest.of(2, 10, Direction.DESC, "familyName");
+    Page<User> emptyPage = new PageImpl<User>(List.of(), expectedRequest, 0);
     when(userRepository
             .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
-                "nobody", "nobody", "nobody", "nobody"))
-        .thenReturn(List.of());
+                "x", "x", "x", "x", expectedRequest))
+        .thenReturn(emptyPage);
 
-    MvcResult response =
-        mockMvc
-            .perform(get("/api/admin/users/q").param("searchString", "nobody"))
-            .andExpect(status().isOk())
-            .andReturn();
+    mockMvc
+        .perform(
+            get("/api/admin/users/q")
+                .param("searchString", "x")
+                .param("page", "2")
+                .param("pageSize", "10")
+                .param("sortField", "familyName")
+                .param("sortDirection", "DESC"))
+        .andExpect(status().isOk());
 
-    assertEquals("[]", response.getResponse().getContentAsString());
+    verify(userRepository, times(1))
+        .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+            "x", "x", "x", "x", expectedRequest);
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void users_by_name_and_email__fails_when_invalid_sortField() throws Exception {
+    mockMvc
+        .perform(
+            get("/api/admin/users/q")
+                .param("searchString", "x")
+                .param("page", "0")
+                .param("pageSize", "5")
+                .param("sortField", "INVALID")
+                .param("sortDirection", "ASC"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void users_by_name_and_email__fails_when_invalid_sortDirection() throws Exception {
+    mockMvc
+        .perform(
+            get("/api/admin/users/q")
+                .param("searchString", "x")
+                .param("page", "0")
+                .param("pageSize", "5")
+                .param("sortField", "email")
+                .param("sortDirection", "INVALID"))
+        .andExpect(status().isBadRequest());
   }
 
   @WithMockUser(roles = {"ADMIN", "USER"})
   @Test
   public void users_by_name_and_email__missing_search_string_returns_400() throws Exception {
-    mockMvc.perform(get("/api/admin/users/q")).andExpect(status().isBadRequest());
+    mockMvc
+        .perform(
+            get("/api/admin/users/q")
+                .param("page", "0")
+                .param("pageSize", "5")
+                .param("sortField", "email")
+                .param("sortDirection", "ASC"))
+        .andExpect(status().isBadRequest());
   }
 }

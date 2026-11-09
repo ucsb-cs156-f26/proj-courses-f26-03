@@ -8,6 +8,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @DataJpaTest
 public class UserRepositoryTests {
@@ -40,7 +43,8 @@ public class UserRepositoryTests {
   private List<User> search(String s) {
     return userRepository
         .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
-            s, s, s, s);
+            s, s, s, s, PageRequest.of(0, 10, Sort.by("email")))
+        .getContent();
   }
 
   @Test
@@ -77,5 +81,22 @@ public class UserRepositoryTests {
   public void search_matches_across_email_and_name_fields() {
     assertEquals(List.of(chris, dana), search("a"));
     assertEquals(2, search("@").size());
+  }
+
+  @Test
+  public void search_is_paged_and_sorted() {
+    Page<User> first =
+        userRepository
+            .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+                "a", "a", "a", "a", PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "email")));
+    Page<User> second =
+        userRepository
+            .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+                "a", "a", "a", "a", PageRequest.of(1, 1, Sort.by(Sort.Direction.DESC, "email")));
+
+    assertEquals(2, first.getTotalElements());
+    assertEquals(2, first.getTotalPages());
+    assertEquals(List.of(dana), first.getContent());
+    assertEquals(List.of(chris), second.getContent());
   }
 }
