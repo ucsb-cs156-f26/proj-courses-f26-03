@@ -42,12 +42,10 @@ public class UsersController extends ApiController {
   public ResponseEntity<String> users_by_name_and_email(@RequestParam String searchString)
       throws JsonProcessingException {
 
-    Iterable<User> users;
-    if (searchString.contains("@")) {
-      users = userRepository.findByEmailContaining(searchString).stream().toList();
-    } else {
-      users = userRepository.findByNameContaining(searchString).stream().toList();
-    }
+    Iterable<User> users =
+        userRepository
+            .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+                searchString, searchString, searchString, searchString);
 
     String body = mapper.writeValueAsString(users);
     return ResponseEntity.ok().body(body);

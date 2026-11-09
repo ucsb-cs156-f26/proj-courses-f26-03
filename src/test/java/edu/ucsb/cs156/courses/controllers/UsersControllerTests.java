@@ -3,8 +3,6 @@ package edu.ucsb.cs156.courses.controllers;
 // Tests for UsersController, including paged endpoints with sortField support
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -237,46 +234,34 @@ public class UsersControllerTests extends ControllerTestCase {
 
   @WithMockUser(roles = {"ADMIN", "USER"})
   @Test
-  public void users_by_name_and_email__search_string_with_at_sign_queries_by_email()
+  public void users_by_name_and_email__queries_email_and_names_with_search_string()
       throws Exception {
-    User u = User.builder().id(1L).email("cgaucho@ucsb.edu").build();
-    when(userRepository.findByEmailContaining("@ucsb.edu")).thenReturn(Optional.of(u));
+    User u = User.builder().id(1L).email("cgaucho@ucsb.edu").fullName("Chris Gaucho").build();
+    when(userRepository
+            .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+                "gaucho", "gaucho", "gaucho", "gaucho"))
+        .thenReturn(List.of(u));
     String expectedJson = mapper.writeValueAsString(List.of(u));
 
     MvcResult response =
         mockMvc
-            .perform(get("/api/admin/users/q").param("searchString", "@ucsb.edu"))
+            .perform(get("/api/admin/users/q").param("searchString", "gaucho"))
             .andExpect(status().isOk())
             .andReturn();
 
-    verify(userRepository, times(1)).findByEmailContaining("@ucsb.edu");
-    verify(userRepository, never()).findByNameContaining(any());
-    assertEquals(expectedJson, response.getResponse().getContentAsString());
-  }
-
-  @WithMockUser(roles = {"ADMIN", "USER"})
-  @Test
-  public void users_by_name_and_email__search_string_without_at_sign_queries_by_name()
-      throws Exception {
-    User u = User.builder().id(1L).fullName("Chris Gaucho").build();
-    when(userRepository.findByNameContaining("Gaucho")).thenReturn(Optional.of(u));
-    String expectedJson = mapper.writeValueAsString(List.of(u));
-
-    MvcResult response =
-        mockMvc
-            .perform(get("/api/admin/users/q").param("searchString", "Gaucho"))
-            .andExpect(status().isOk())
-            .andReturn();
-
-    verify(userRepository, times(1)).findByNameContaining("Gaucho");
-    verify(userRepository, never()).findByEmailContaining(any());
+    verify(userRepository, times(1))
+        .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+            "gaucho", "gaucho", "gaucho", "gaucho");
     assertEquals(expectedJson, response.getResponse().getContentAsString());
   }
 
   @WithMockUser(roles = {"ADMIN", "USER"})
   @Test
   public void users_by_name_and_email__no_match_returns_empty_list() throws Exception {
-    when(userRepository.findByNameContaining("nobody")).thenReturn(Optional.empty());
+    when(userRepository
+            .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+                "nobody", "nobody", "nobody", "nobody"))
+        .thenReturn(List.of());
 
     MvcResult response =
         mockMvc
