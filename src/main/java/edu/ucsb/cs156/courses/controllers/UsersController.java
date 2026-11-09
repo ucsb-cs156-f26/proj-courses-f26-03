@@ -36,6 +36,23 @@ public class UsersController extends ApiController {
     return ResponseEntity.ok().body(body);
   }
 
+  @Operation(summary = "Query a list of user by name and email")
+  @PreAuthorize("hasRole('ROLE_ADMIN')")
+  @GetMapping("/q")
+  public ResponseEntity<String> users_by_name_and_email(@RequestParam String searchString)
+      throws JsonProcessingException {
+
+    Iterable<User> users;
+    if (searchString.contains("@")) {
+      users = userRepository.findByEmailContaining(searchString).stream().toList();
+    } else {
+      users = userRepository.findByNameContaining(searchString).stream().toList();
+    }
+
+    String body = mapper.writeValueAsString(users);
+    return ResponseEntity.ok().body(body);
+  }
+
   @Operation(summary = "Get a list of all users with pages")
   @PreAuthorize("hasRole('ROLE_ADMIN')")
   @GetMapping(params = {"page", "pageSize", "sortField", "sortDirection"})
