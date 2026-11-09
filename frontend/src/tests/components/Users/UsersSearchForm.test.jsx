@@ -37,6 +37,33 @@ describe("UsersSearchForm tests", () => {
     expect(screen.getByLabelText("Page Size")).toBeInTheDocument();
   });
 
+  test("search bar limits input to 255 characters", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <UsersSearchForm
+            updateSortField={setSortField}
+            updateSortDirection={setSortDirection}
+            updatePageSize={setPageSize}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const search = screen.getByLabelText("Search");
+    expect(search).toHaveAttribute("maxlength", "255");
+    expect(
+      screen.queryByTestId("UsersSearch.Search-notice"),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(search);
+    await userEvent.paste("a".repeat(300));
+    expect(search.value).toHaveLength(255);
+    expect(screen.getByTestId("UsersSearch.Search-notice")).toHaveTextContent(
+      "Search is limited to 255 characters.",
+    );
+  });
+
   test("when I select a sortField, the state for sortField changes", async () => {
     const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
 
