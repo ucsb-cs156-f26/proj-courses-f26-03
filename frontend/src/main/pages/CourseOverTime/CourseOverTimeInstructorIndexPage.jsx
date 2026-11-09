@@ -52,7 +52,7 @@ export default function CourseOverTimeInstructorIndexPage() {
           </div>
         )}
         {!mutation.isLoading && courseJSON.length > 0 && (
-          <ConvertedSectionTable sections={courseJSON} showSession/>
+          <ConvertedSectionTable sections={courseJSON} showSession />
         )}
       </div>
     </BasicLayout>
