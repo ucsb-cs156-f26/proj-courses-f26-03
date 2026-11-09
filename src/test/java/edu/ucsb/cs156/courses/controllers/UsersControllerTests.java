@@ -3,6 +3,8 @@ package edu.ucsb.cs156.courses.controllers;
 // Tests for UsersController, including paged endpoints with sortField support
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,7 +18,9 @@ import edu.ucsb.cs156.courses.repositories.UserRepository;
 import edu.ucsb.cs156.courses.testconfig.TestConfig;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -214,5 +218,78 @@ public class UsersControllerTests extends ControllerTestCase {
     String expectedResponseAsJson = objectMapper.writeValueAsString(expectedResponse);
     String actualResponse = response.getResponse().getContentAsString();
     assertEquals(expectedResponseAsJson, actualResponse);
+  }
+
+  @Test
+  public void users_by_name_and_email__logged_out() throws Exception {
+    mockMvc
+        .perform(get("/api/admin/users/q").param("searchString", "abc"))
+        .andExpect(status().is(403));
+  }
+
+  @WithMockUser(roles = {"USER"})
+  @Test
+  public void users_by_name_and_email__user_logged_in() throws Exception {
+    mockMvc
+        .perform(get("/api/admin/users/q").param("searchString", "abc"))
+        .andExpect(status().is(403));
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void users_by_name_and_email__search_string_with_at_sign_queries_by_email()
+      throws Exception {
+    User u = User.builder().id(1L).email("cgaucho@ucsb.edu").build();
+    when(userRepository.findByEmailContaining("@ucsb.edu")).thenReturn(Optional.of(u));
+    String expectedJson = mapper.writeValueAsString(List.of(u));
+
+    MvcResult response =
+        mockMvc
+            .perform(get("/api/admin/users/q").param("searchString", "@ucsb.edu"))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    verify(userRepository, times(1)).findByEmailContaining("@ucsb.edu");
+    verify(userRepository, never()).findByNameContaining(any());
+    assertEquals(expectedJson, response.getResponse().getContentAsString());
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void users_by_name_and_email__search_string_without_at_sign_queries_by_name()
+      throws Exception {
+    User u = User.builder().id(1L).fullName("Chris Gaucho").build();
+    when(userRepository.findByNameContaining("Gaucho")).thenReturn(Optional.of(u));
+    String expectedJson = mapper.writeValueAsString(List.of(u));
+
+    MvcResult response =
+        mockMvc
+            .perform(get("/api/admin/users/q").param("searchString", "Gaucho"))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    verify(userRepository, times(1)).findByNameContaining("Gaucho");
+    verify(userRepository, never()).findByEmailContaining(any());
+    assertEquals(expectedJson, response.getResponse().getContentAsString());
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void users_by_name_and_email__no_match_returns_empty_list() throws Exception {
+    when(userRepository.findByNameContaining("nobody")).thenReturn(Optional.empty());
+
+    MvcResult response =
+        mockMvc
+            .perform(get("/api/admin/users/q").param("searchString", "nobody"))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    assertEquals("[]", response.getResponse().getContentAsString());
+  }
+
+  @WithMockUser(roles = {"ADMIN", "USER"})
+  @Test
+  public void users_by_name_and_email__missing_search_string_returns_400() throws Exception {
+    mockMvc.perform(get("/api/admin/users/q")).andExpect(status().isBadRequest());
   }
 }
