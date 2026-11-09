@@ -9,6 +9,7 @@ import useLocalStorage from "main/utils/useLocalStorage";
 
 const AdminUsersPage = () => {
   const [selectedPage, setSelectedPage] = useState(1);
+  const [searchString, setSearchString] = useState("");
   const [pageSize, setPageSize] = useLocalStorage("UsersSearch.PageSize", "10");
   const [sortField, setSortField] = useLocalStorage(
     "UsersSearch.SortField",
@@ -18,6 +19,9 @@ const AdminUsersPage = () => {
     "UsersSearch.SortDirection",
     "ASC",
   );
+
+  const trimmedSearch = searchString.trim();
+  const isSearching = trimmedSearch !== "";
 
   const {
     data: page,
@@ -38,6 +42,19 @@ const AdminUsersPage = () => {
       },
     },
     { content: [], totalPages: 0 },
+    { enabled: !isSearching },
+  );
+
+  const { data: searchResults } = useBackend(
+    // Stryker disable next-line all : don't test internal caching of React Query
+    ["/api/admin/users/q", trimmedSearch],
+    {
+      method: "GET",
+      url: "/api/admin/users/q",
+      params: { searchString: trimmedSearch },
+    },
+    [],
+    { enabled: isSearching },
   );
 
   return (
@@ -47,12 +64,15 @@ const AdminUsersPage = () => {
         updateSortField={setSortField}
         updateSortDirection={setSortDirection}
         updatePageSize={setPageSize}
+        updateSearch={setSearchString}
       />
-      <OurPagination
-        updateActivePage={setSelectedPage}
-        totalPages={page.totalPages}
-      />
-      <UsersTable users={page.content} />
+      {!isSearching && (
+        <OurPagination
+          updateActivePage={setSelectedPage}
+          totalPages={page.totalPages}
+        />
+      )}
+      <UsersTable users={isSearching ? searchResults : page.content} />
     </BasicLayout>
   );
 };
