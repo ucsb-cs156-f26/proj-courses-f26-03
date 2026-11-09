@@ -35,6 +35,8 @@ describe("UsersSearchForm tests", () => {
     expect(screen.getByLabelText("Sort By")).toBeInTheDocument();
     expect(screen.getByLabelText("Sort Direction")).toBeInTheDocument();
     expect(screen.getByLabelText("Page Size")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search")).toHaveValue("");
   });
 
   test("search bar limits input to 255 characters", async () => {
