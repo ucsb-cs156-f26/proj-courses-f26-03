@@ -193,4 +193,72 @@ describe("AdminUsersPage tests", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("OurPagination-1")).not.toBeInTheDocument();
   });
+  test("typing in the search bar queries the search endpoint and hides pagination", async () => {
+    const queryClient = new QueryClient();
+    axiosMock.onGet("/api/admin/users").reply(200, {
+      content: usersFixtures.threeUsers,
+      totalPages: 2,
+    });
+    axiosMock
+      .onGet("/api/admin/users/q")
+      .reply(200, [usersFixtures.threeUsers[1]]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdminUsersPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByTestId("OurPagination-2")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Search"), {
+      target: { value: "  abc  " },
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId(`UsersTable-cell-row-0-col-email`),
+      ).toHaveTextContent(usersFixtures.threeUsers[1].email),
+    );
+    expect(screen.queryByTestId("UsersTable-cell-row-1-col-id")).toBeNull();
+    expect(screen.queryByTestId("OurPagination-2")).not.toBeInTheDocument();
+
+    const searchRequest = axiosMock.history.get.find(
+      (request) => request.url === "/api/admin/users/q",
+    );
+    expect(searchRequest.params).toEqual({ searchString: "abc" });
+  });
+
+  test("clearing the search bar returns to the paged list", async () => {
+    const queryClient = new QueryClient();
+    axiosMock.onGet("/api/admin/users").reply(200, {
+      content: usersFixtures.threeUsers,
+      totalPages: 2,
+    });
+    axiosMock
+      .onGet("/api/admin/users/q")
+      .reply(200, [usersFixtures.threeUsers[1]]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdminUsersPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const search = await screen.findByLabelText("Search");
+    fireEvent.change(search, { target: { value: "abc" } });
+    await waitFor(() =>
+      expect(screen.queryByTestId("OurPagination-2")).not.toBeInTheDocument(),
+    );
+
+    fireEvent.change(search, { target: { value: "" } });
+    expect(await screen.findByTestId("OurPagination-2")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("UsersTable-cell-row-2-col-id"),
+    ).toBeInTheDocument();
+  });
 });

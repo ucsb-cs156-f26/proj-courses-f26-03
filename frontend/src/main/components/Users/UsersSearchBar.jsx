@@ -16,7 +16,7 @@ const UsersSearchBar = ({ updateSearch }) => {
         value={value}
         onChange={(event) => {
           setValue(event.target.value);
-          // updateSearch?.(event.target.value);
+          updateSearch?.(event.target.value);
         }}
       />
       {value.length >= MAX_SEARCH_LENGTH && (
