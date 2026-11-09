@@ -23,24 +23,19 @@ const AdminUsersPage = () => {
   const trimmedSearch = searchString.trim();
   const isSearching = trimmedSearch !== "";
 
+  const url = isSearching ? "/api/admin/users/q" : "/api/admin/users";
+
   const {
     data: page,
     error: _error,
     status: _status,
   } = useBackend(
     // Stryker disable next-line all : don't test internal caching of React Query
-    [
-      isSearching ? "/api/admin/users/q" : "/api/admin/users",
-      trimmedSearch,
-      selectedPage,
-      pageSize,
-      sortField,
-      sortDirection,
-    ],
+    [url, trimmedSearch, selectedPage, pageSize, sortField, sortDirection],
     {
       // Stryker disable next-line StringLiteral : GET is default, so replacing with "" is an equivalent mutation
       method: "GET",
-      url: isSearching ? "/api/admin/users/q" : "/api/admin/users",
+      url,
       params: {
         ...(isSearching && { searchString: trimmedSearch }),
         page: selectedPage - 1,
