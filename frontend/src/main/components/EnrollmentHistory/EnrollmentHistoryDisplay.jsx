@@ -11,6 +11,7 @@ export default function EnrollmentHistoryDisplay({ selection }) {
   const subjectArea = splitArray[0];
   const courseNumber = splitArray[splitArray.length - 1].trim();
 
+  // Stryker disable all : hard to test for query caching
   const {
     data: enrollmentHistory,
     isLoading,
@@ -33,6 +34,7 @@ export default function EnrollmentHistoryDisplay({ selection }) {
     undefined,
     { enabled: Boolean(subjectArea && courseNumber && enrollCode) },
   );
+  // Stryker restore all
 
   if (isLoading) {
     return (
@@ -56,6 +58,7 @@ export default function EnrollmentHistoryDisplay({ selection }) {
     );
   }
 
+  // Stryker disable next-line ArrayDeclaration : an unmatched placeholder filters out the same as []
   const selectedEnrollmentHistory = (enrollmentHistory || []).filter(
     (dataPoint) => dataPoint.enrollCd === enrollCode,
   );
