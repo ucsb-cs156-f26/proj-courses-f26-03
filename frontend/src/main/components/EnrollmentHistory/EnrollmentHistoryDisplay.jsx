@@ -7,7 +7,7 @@ export default function EnrollmentHistoryDisplay({ selection }) {
   const { quarter, courseId, enrollCode } = selection;
 
   // Splitting on two spaces allows for courses with multiple word subject areas (i.e. AS AM) to be recognized
-  const splitArray = (courseId || "").trim().split("  ");
+  const splitArray = courseId.split("  ");
   const subjectArea = splitArray[0];
   const courseNumber = splitArray[splitArray.length - 1].trim();
 

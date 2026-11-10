@@ -60,12 +60,7 @@ export default function EnrollmentHistoryPage() {
             onShowEnrollmentHistory={setSelection}
           />
         )}
-        {selection && (
-          <EnrollmentHistoryDisplay
-            key={`${selection.quarter}-${selection.enrollCode}`}
-            selection={selection}
-          />
-        )}
+        {selection && <EnrollmentHistoryDisplay selection={selection} />}
       </div>
     </BasicLayout>
   );
