@@ -1,4 +1,5 @@
 import { useState } from "react";
+import EnrollmentHistoryDisplay from "main/components/EnrollmentHistory/EnrollmentHistoryDisplay";
 import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
 import CourseOverTimeSearchForm from "main/components/BasicCourseSearch/CourseOverTimeSearchForm";
 import { useBackendMutation } from "main/utils/useBackend";
@@ -9,6 +10,8 @@ export default function EnrollmentHistoryPage() {
   const [courseJSON, setCourseJSON] = useState([]);
   // Stryker disable next-line all : Can't test state because hook is internal
   const [hasSearched, setHasSearched] = useState(false);
+  // Stryker disable next-line all : Can't test state because hook is internal
+  const [selection, setSelection] = useState(null);
 
   const objectToAxiosParams = (query) => ({
     url: "/api/public/courseovertime/search",
@@ -23,6 +26,7 @@ export default function EnrollmentHistoryPage() {
   const onSuccess = (courses) => {
     setCourseJSON(courses);
     setHasSearched(true);
+    setSelection(null);
   };
 
   const mutation = useBackendMutation(
@@ -50,7 +54,17 @@ export default function EnrollmentHistoryPage() {
           </div>
         )}
         {!mutation.isLoading && courseJSON.length > 0 && (
-          <EnrollmentHistorySectionsTable sections={courseJSON} showSession />
+          <EnrollmentHistorySectionsTable
+            sections={courseJSON}
+            showSession
+            onShowEnrollmentHistory={setSelection}
+          />
+        )}
+        {selection && (
+          <EnrollmentHistoryDisplay
+            key={`${selection.quarter}-${selection.enrollCode}`}
+            selection={selection}
+          />
         )}
       </div>
     </BasicLayout>

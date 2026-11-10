@@ -129,7 +129,16 @@ export default function EnrollmentHistorySectionsTable({
         <Button
           size="sm"
           data-testid={`${testid}-row-${row.id}-show-enrollment-history`}
-          onClick={() => onShowEnrollmentHistory(row.original, row)}
+          onClick={() =>
+            onShowEnrollmentHistory({
+              quarter: getQuarter(row),
+              courseId: (row.depth === 0
+                ? row.original
+                : row.getParentRow().original
+              ).courseId,
+              enrollCode: getSectionField(row, "enrollCode"),
+            })
+          }
         >
           Show History
         </Button>
