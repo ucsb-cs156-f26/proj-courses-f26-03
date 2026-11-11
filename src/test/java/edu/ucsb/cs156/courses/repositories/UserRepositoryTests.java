@@ -1,6 +1,7 @@
 package edu.ucsb.cs156.courses.repositories;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import edu.ucsb.cs156.courses.entities.User;
 import java.util.List;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -98,5 +100,23 @@ public class UserRepositoryTests {
     assertEquals(2, first.getTotalPages());
     assertEquals(List.of(dana), first.getContent());
     assertEquals(List.of(chris), second.getContent());
+  }
+
+  @Test
+  public void saving_two_users_with_same_email_violates_unique_constraint() {
+    userRepository.save(User.builder().email("duplicate@ucsb.edu").build());
+
+    assertThrows(
+        DataIntegrityViolationException.class,
+        () -> userRepository.save(User.builder().email("duplicate@ucsb.edu").build()));
+  }
+
+  @Test
+  public void saving_two_users_with_different_emails_succeeds() {
+    long before = userRepository.count();
+    userRepository.save(User.builder().email("first@ucsb.edu").build());
+    userRepository.save(User.builder().email("second@ucsb.edu").build());
+
+    assertEquals(before + 2, userRepository.count());
   }
 }
