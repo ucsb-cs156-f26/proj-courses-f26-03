@@ -34,6 +34,15 @@ describe("AppNavbar tests", () => {
     expect(screen.getByTestId("appnavbar-downloads")).toHaveTextContent(
       "Downloads",
     );
+    expect(screen.getByTestId("appnavbar-personalschedules-list")).toHaveAttribute(
+      "href",
+      "/personalschedules/list",
+    );
+    expect(screen.getByTestId("appnavbar-mainsearch-list")).toHaveAttribute(
+      "href",
+      "/",
+    );
+
   });
 
   test("renders correctly for admin user", async () => {
@@ -73,6 +82,35 @@ describe("AppNavbar tests", () => {
       screen.getByTestId("appnavbar-admin-rate-limiting"),
     ).toBeInTheDocument();
     expect(screen.getByTestId("appnavbar-developer")).toBeInTheDocument();
+    expect(screen.getByTestId("appnavbar-admin-users")).toHaveAttribute(
+      "href",
+      "/admin/users",
+    );
+    expect(screen.getByTestId("appnavbar-admin-updates")).toHaveAttribute(
+      "href",
+      "/admin/updates",
+    );
+    expect(screen.getByTestId("appnavbar-admin-personalschedule")).toHaveAttribute(
+      "href",
+      "/admin/personalschedule",
+    );
+    expect(screen.getByTestId("appnavbar-admin-loadsubjects")).toHaveAttribute(
+      "href",
+      "/admin/loadsubjects",
+    );
+    expect(screen.getByTestId("appnavbar-admin-jobs")).toHaveAttribute(
+      "href",
+      "/admin/jobs",
+    );
+    expect(screen.getByTestId("appnavbar-admin-rate-limiting")).toHaveAttribute(
+      "href",
+      "/admin/rate-limiting",
+    );
+    expect(screen.getByTestId("appnavbar-developer")).toHaveAttribute(
+      "href",
+      "/developer",
+    );
+
   });
 
   test("renders H2Console and Swagger links correctly", async () => {
@@ -249,6 +287,9 @@ describe("AppNavbar tests", () => {
     expect(
       await screen.findByTestId("appnavbar-course-descriptions-search"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("appnavbar-course-descriptions-search"),
+    ).toHaveAttribute("href", "/coursedescriptions/search");
   });
 
   test("renders the Course History/Course Over Time menu correctly", async () => {
@@ -280,6 +321,9 @@ describe("AppNavbar tests", () => {
     expect(
       await screen.findByTestId("appnavbar-course-over-time-search"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("appnavbar-course-over-time-search"),
+    ).toHaveAttribute("href", "/courseovertime/search");
   });
 
   test("renders the Instructor Course Over Time menu correctly", async () => {
@@ -311,7 +355,20 @@ describe("AppNavbar tests", () => {
     expect(
       await screen.findByTestId("appnavbar-course-over-time-instructor-search"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("appnavbar-course-over-time-instructor-search"),
+    ).toHaveAttribute("href", "/courseovertime/instructorsearch");
+
+    expect(
+      screen.getByTestId("appnavbar-course-over-time-buildings-search"),
+    ).toHaveAttribute("href", "/courseovertime/buildingsearch/classrooms");
+
+    expect(screen.getByTestId("appnavbar-ge-search")).toHaveAttribute(
+      "href",
+      "/generaleducation/search",
+    );
   });
+
 
   test("renders no system message banners when systemInfo.systemMessages is empty or absent", async () => {
     const currentUser = currentUserFixtures.userOnly;
