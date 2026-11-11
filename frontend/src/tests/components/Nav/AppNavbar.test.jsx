@@ -34,15 +34,13 @@ describe("AppNavbar tests", () => {
     expect(screen.getByTestId("appnavbar-downloads")).toHaveTextContent(
       "Downloads",
     );
-    expect(screen.getByTestId("appnavbar-personalschedules-list")).toHaveAttribute(
-      "href",
-      "/personalschedules/list",
-    );
+    expect(
+      screen.getByTestId("appnavbar-personalschedules-list"),
+    ).toHaveAttribute("href", "/personalschedules/list");
     expect(screen.getByTestId("appnavbar-mainsearch-list")).toHaveAttribute(
       "href",
       "/",
     );
-
   });
 
   test("renders correctly for admin user", async () => {
@@ -90,10 +88,9 @@ describe("AppNavbar tests", () => {
       "href",
       "/admin/updates",
     );
-    expect(screen.getByTestId("appnavbar-admin-personalschedule")).toHaveAttribute(
-      "href",
-      "/admin/personalschedule",
-    );
+    expect(
+      screen.getByTestId("appnavbar-admin-personalschedule"),
+    ).toHaveAttribute("href", "/admin/personalschedule");
     expect(screen.getByTestId("appnavbar-admin-loadsubjects")).toHaveAttribute(
       "href",
       "/admin/loadsubjects",
@@ -110,7 +107,6 @@ describe("AppNavbar tests", () => {
       "href",
       "/developer",
     );
-
   });
 
   test("renders H2Console and Swagger links correctly", async () => {
@@ -368,7 +364,6 @@ describe("AppNavbar tests", () => {
       "/generaleducation/search",
     );
   });
-
 
   test("renders no system message banners when systemInfo.systemMessages is empty or absent", async () => {
     const currentUser = currentUserFixtures.userOnly;
