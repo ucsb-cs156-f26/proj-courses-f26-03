@@ -29,12 +29,20 @@ const AdminUsersPage = () => {
     status: _status,
   } = useBackend(
     // Stryker disable next-line all : don't test internal caching of React Query
-    ["/api/admin/users", selectedPage, pageSize, sortField, sortDirection],
+    [
+      isSearching ? "/api/admin/users/q" : "/api/admin/users",
+      trimmedSearch,
+      selectedPage,
+      pageSize,
+      sortField,
+      sortDirection,
+    ],
     {
       // Stryker disable next-line StringLiteral : GET is default, so replacing with "" is an equivalent mutation
       method: "GET",
-      url: "/api/admin/users",
+      url: isSearching ? "/api/admin/users/q" : "/api/admin/users",
       params: {
+        ...(isSearching && { searchString: trimmedSearch }),
         page: selectedPage - 1,
         pageSize,
         sortField,
@@ -42,20 +50,12 @@ const AdminUsersPage = () => {
       },
     },
     { content: [], totalPages: 0 },
-    { enabled: !isSearching },
   );
 
-  const { data: searchResults } = useBackend(
-    // Stryker disable next-line all : don't test internal caching of React Query
-    ["/api/admin/users/q", trimmedSearch],
-    {
-      method: "GET",
-      url: "/api/admin/users/q",
-      params: { searchString: trimmedSearch },
-    },
-    [],
-    { enabled: isSearching },
-  );
+  const updateSearch = (value) => {
+    setSearchString(value);
+    setSelectedPage(1);
+  };
 
   return (
     <BasicLayout>
@@ -64,15 +64,13 @@ const AdminUsersPage = () => {
         updateSortField={setSortField}
         updateSortDirection={setSortDirection}
         updatePageSize={setPageSize}
-        updateSearch={setSearchString}
+        updateSearch={updateSearch}
       />
-      {!isSearching && (
-        <OurPagination
-          updateActivePage={setSelectedPage}
-          totalPages={page.totalPages}
-        />
-      )}
-      <UsersTable users={isSearching ? searchResults : page.content} />
+      <OurPagination
+        updateActivePage={setSelectedPage}
+        totalPages={page.totalPages}
+      />
+      <UsersTable users={page.content} />
     </BasicLayout>
   );
 };
