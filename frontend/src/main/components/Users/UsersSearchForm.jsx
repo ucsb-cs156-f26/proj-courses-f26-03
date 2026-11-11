@@ -6,7 +6,6 @@ const UsersSearchForm = ({
   updateSortField,
   updateSortDirection,
   updatePageSize,
-  updateSearch,
 }) => {
   // Stryker disable all ; testing for specific hard coded lists is just writing the code twice
   const sortFields = ["email", "givenName", "familyName"];
@@ -42,7 +41,7 @@ const UsersSearchForm = ({
           />
         </Col>
         <Col md="auto">
-          <UsersSearchBar updateSearch={updateSearch} />
+          <UsersSearchBar />
         </Col>
       </Row>
     </Container>
