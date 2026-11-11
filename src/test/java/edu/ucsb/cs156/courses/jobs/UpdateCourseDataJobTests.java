@@ -1,13 +1,14 @@
 package edu.ucsb.cs156.courses.jobs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import edu.ucsb.cs156.courses.collections.ConvertedSectionCollection;
 import edu.ucsb.cs156.courses.collections.UpdateCollection;
 import edu.ucsb.cs156.courses.documents.ConvertedSection;
 import edu.ucsb.cs156.courses.documents.CoursePage;
@@ -15,9 +16,11 @@ import edu.ucsb.cs156.courses.documents.CoursePageFixtures;
 import edu.ucsb.cs156.courses.documents.Update;
 import edu.ucsb.cs156.courses.entities.EnrollmentDataPoint;
 import edu.ucsb.cs156.courses.repositories.EnrollmentDataPointRepository;
+import edu.ucsb.cs156.courses.services.CourseCacheService;
 import edu.ucsb.cs156.courses.services.IsStaleService;
 import edu.ucsb.cs156.courses.services.UCSBAPIQuarterService;
 import edu.ucsb.cs156.courses.services.UCSBCurriculumService;
+import edu.ucsb.cs156.courses.services.UpdateService;
 import edu.ucsb.cs156.jobs.entities.Job;
 import edu.ucsb.cs156.jobs.errors.JobCancelledException;
 import edu.ucsb.cs156.jobs.repositories.JobsRepository;
@@ -27,12 +30,17 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @EnableConfigurationProperties(value = JobRateLimit.class)
@@ -40,7 +48,7 @@ import org.springframework.test.context.TestPropertySource;
 public class UpdateCourseDataJobTests {
   @Mock UCSBCurriculumService ucsbCurriculumService;
 
-  @Mock ConvertedSectionCollection convertedSectionCollection;
+  @Mock CourseCacheService courseCacheService;
 
   @Mock UpdateCollection updateCollection;
 
@@ -64,7 +72,7 @@ public class UpdateCourseDataJobTests {
                 .end_quarterYYYYQ("20213")
                 .subjects(List.of("CMPSC", "MATH"))
                 .ucsbCurriculumService(ucsbCurriculumService)
-                .convertedSectionCollection(convertedSectionCollection)
+                .courseCacheService(courseCacheService)
                 .updateCollection(updateCollection)
                 .isStaleService(isStaleService)
                 .ifStale(false)
@@ -105,6 +113,8 @@ public class UpdateCourseDataJobTests {
     Update update = new Update(null, "CMPSC", "20211", 14, 0, 0, someTime);
     when(updateCollection.save(any())).thenReturn(update);
 
+    when(courseCacheService.upsertSection(any())).thenReturn(true);
+
     // Act
     var job =
         new UpdateCourseDataJob(
@@ -112,7 +122,7 @@ public class UpdateCourseDataJobTests {
             "20211",
             List.of("CMPSC"),
             ucsbCurriculumService,
-            convertedSectionCollection,
+            courseCacheService,
             updateCollection,
             isStaleService,
             false,
@@ -132,6 +142,8 @@ public class UpdateCourseDataJobTests {
                 Finished updating courses""";
 
     assertEquals(expected, jobStarted.getLog());
+    verifyNoInteractions(enrollmentDataPointRepository);
+    verify(courseCacheService).prepareIndex();
   }
 
   @Test
@@ -153,18 +165,10 @@ public class UpdateCourseDataJobTests {
     listWithTwoOrigOneDuplicate.add(section1);
     listWithTwoOrigOneDuplicate.add(section0);
 
-    Optional<ConvertedSection> section0Optional = Optional.of(section0);
-    Optional<ConvertedSection> emptyOptional = Optional.empty();
-
     when(ucsbCurriculumService.getConvertedSections(eq("MATH"), eq("20211"), eq("A")))
         .thenReturn(listWithTwoOrigOneDuplicate);
-    when(convertedSectionCollection.findOneByQuarterAndEnrollCode(
-            eq(section0.getCourseInfo().getQuarter()), eq(section0.getSection().getEnrollCode())))
-        .thenReturn(emptyOptional)
-        .thenReturn(section0Optional);
-    when(convertedSectionCollection.findOneByQuarterAndEnrollCode(
-            eq(section1.getCourseInfo().getQuarter()), eq(section1.getSection().getEnrollCode())))
-        .thenReturn(emptyOptional);
+    when(courseCacheService.upsertSection(section0)).thenReturn(true, false);
+    when(courseCacheService.upsertSection(section1)).thenReturn(true);
     when(ucsbapiQuarterService.isQuarterInRegistrationPass(anyString())).thenReturn(false);
 
     LocalDateTime someTime = LocalDateTime.parse("2022-03-05T15:50:10");
@@ -178,7 +182,7 @@ public class UpdateCourseDataJobTests {
             "20211",
             List.of("MATH"),
             ucsbCurriculumService,
-            convertedSectionCollection,
+            courseCacheService,
             updateCollection,
             isStaleService,
             false,
@@ -216,13 +220,9 @@ public class UpdateCourseDataJobTests {
 
     listWithOneSection.add(section0);
 
-    Optional<ConvertedSection> section0Optional = Optional.of(section0);
-    Optional<ConvertedSection> emptyOptional = Optional.empty();
-
     when(ucsbCurriculumService.getConvertedSections(eq("MATH"), eq("20211"), eq("A")))
         .thenReturn(listWithOneSection);
-    when(convertedSectionCollection.findOneByQuarterAndEnrollCode(
-            eq(section0.getCourseInfo().getQuarter()), eq(section0.getSection().getEnrollCode())))
+    when(courseCacheService.upsertSection(section0))
         .thenThrow(new IllegalArgumentException("Testing Exception Handling!"));
     when(ucsbapiQuarterService.isQuarterInRegistrationPass(anyString())).thenReturn(false);
 
@@ -237,7 +237,7 @@ public class UpdateCourseDataJobTests {
             "20211",
             List.of("MATH"),
             ucsbCurriculumService,
-            convertedSectionCollection,
+            courseCacheService,
             updateCollection,
             isStaleService,
             false,
@@ -272,8 +272,6 @@ public class UpdateCourseDataJobTests {
     List<ConvertedSection> listWithUpdatedSection = new ArrayList<>();
 
     ConvertedSection section0 = convertedSections.get(0);
-    String quarter = section0.getCourseInfo().getQuarter();
-    String enrollCode = section0.getSection().getEnrollCode();
 
     int oldEnrollment = section0.getSection().getEnrolledTotal();
 
@@ -282,12 +280,8 @@ public class UpdateCourseDataJobTests {
     updatedSection.getSection().setEnrolledTotal(oldEnrollment + 1);
     listWithUpdatedSection.add(updatedSection);
 
-    Optional<ConvertedSection> section0Optional = Optional.of(section0);
-
     when(ucsbCurriculumService.getConvertedSections(eq("MATH"), eq("20211"), eq("A")))
         .thenReturn(listWithUpdatedSection);
-    when(convertedSectionCollection.findOneByQuarterAndEnrollCode(eq(quarter), eq(enrollCode)))
-        .thenReturn(section0Optional);
     when(ucsbapiQuarterService.isQuarterInRegistrationPass(anyString())).thenReturn(false);
 
     LocalDateTime someTime = LocalDateTime.parse("2022-03-05T15:50:10");
@@ -301,7 +295,7 @@ public class UpdateCourseDataJobTests {
             "20211",
             List.of("MATH"),
             ucsbCurriculumService,
-            convertedSectionCollection,
+            courseCacheService,
             updateCollection,
             isStaleService,
             false,
@@ -322,9 +316,7 @@ public class UpdateCourseDataJobTests {
 
     assertEquals(expected, jobStarted.getLog());
 
-    verify(convertedSectionCollection, times(1))
-        .findOneByQuarterAndEnrollCode(eq(quarter), eq(enrollCode));
-    verify(convertedSectionCollection, times(1)).save(updatedSection);
+    verify(courseCacheService).upsertSection(updatedSection);
   }
 
   @Test
@@ -342,8 +334,6 @@ public class UpdateCourseDataJobTests {
     List<ConvertedSection> listWithUpdatedSection = new ArrayList<>();
 
     ConvertedSection section0 = convertedSections.get(0);
-    String quarter = section0.getCourseInfo().getQuarter();
-    String enrollCode = section0.getSection().getEnrollCode();
 
     int oldEnrollment = section0.getSection().getEnrolledTotal();
 
@@ -352,12 +342,8 @@ public class UpdateCourseDataJobTests {
     updatedSection.getSection().setEnrolledTotal(oldEnrollment + 1);
     listWithUpdatedSection.add(updatedSection);
 
-    Optional<ConvertedSection> section0Optional = Optional.of(section0);
-
     when(ucsbCurriculumService.getConvertedSections(eq("MATH"), eq("20211"), eq("A")))
         .thenReturn(listWithUpdatedSection);
-    when(convertedSectionCollection.findOneByQuarterAndEnrollCode(eq(quarter), eq(enrollCode)))
-        .thenReturn(section0Optional);
     when(ucsbapiQuarterService.isQuarterInRegistrationPass(eq("20211"))).thenReturn(true);
 
     LocalDateTime someTime = LocalDateTime.parse("2022-03-05T15:50:10");
@@ -374,7 +360,7 @@ public class UpdateCourseDataJobTests {
             "20211",
             List.of("MATH"),
             ucsbCurriculumService,
-            convertedSectionCollection,
+            courseCacheService,
             updateCollection,
             isStaleService,
             true,
@@ -395,9 +381,7 @@ public class UpdateCourseDataJobTests {
 
     assertEquals(expected, jobStarted.getLog());
 
-    verify(convertedSectionCollection, times(1))
-        .findOneByQuarterAndEnrollCode(eq(quarter), eq(enrollCode));
-    verify(convertedSectionCollection, times(1)).save(updatedSection);
+    verify(courseCacheService).upsertSection(updatedSection);
     verify(enrollmentDataPointRepository, times(1)).save(eq(edp));
   }
 
@@ -415,7 +399,7 @@ public class UpdateCourseDataJobTests {
             "20211",
             List.of("MATH"),
             ucsbCurriculumService,
-            convertedSectionCollection,
+            courseCacheService,
             updateCollection,
             isStaleService,
             true,
@@ -423,6 +407,227 @@ public class UpdateCourseDataJobTests {
             ucsbapiQuarterService,
             jobRateLimit);
     job.accept(ctx);
+  }
+
+  @Test
+  void snapshotFailureCountsPersistedSectionAndErrorThenContinues() throws Exception {
+    List<ConvertedSection> sections =
+        CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B)
+            .convertedSections()
+            .subList(0, 2);
+    when(ucsbCurriculumService.getConvertedSections("MATH", "20222", "A")).thenReturn(sections);
+    when(ucsbapiQuarterService.isQuarterInRegistrationPass("20222")).thenReturn(true);
+    when(courseCacheService.upsertSection(sections.get(0))).thenReturn(true);
+    when(courseCacheService.upsertSection(sections.get(1))).thenReturn(false);
+    when(enrollmentDataPointRepository.save(sections.get(0).getEnrollmentDataPoint()))
+        .thenThrow(new IllegalStateException("snapshot failure"));
+    when(updateCollection.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    var job =
+        UpdateCourseDataJob.builder()
+            .ucsbCurriculumService(ucsbCurriculumService)
+            .courseCacheService(courseCacheService)
+            .updateCollection(updateCollection)
+            .enrollmentDataPointRepository(enrollmentDataPointRepository)
+            .ucsbapiQuarterService(ucsbapiQuarterService)
+            .build();
+
+    job.updateCourses(ctx, "20222", "MATH");
+
+    var update = org.mockito.ArgumentCaptor.forClass(Update.class);
+    verify(updateCollection).save(update.capture());
+    assertEquals(1, update.getValue().getSaved());
+    assertEquals(1, update.getValue().getUpdated());
+    assertEquals(1, update.getValue().getErrors());
+    verify(enrollmentDataPointRepository).save(sections.get(1).getEnrollmentDataPoint());
+  }
+
+  @Test
+  void persistenceFailureSkipsSnapshotButContinuesToNextSection() throws Exception {
+    List<ConvertedSection> sections =
+        CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B)
+            .convertedSections()
+            .subList(0, 2);
+    when(ucsbCurriculumService.getConvertedSections("MATH", "20222", "A")).thenReturn(sections);
+    when(ucsbapiQuarterService.isQuarterInRegistrationPass("20222")).thenReturn(true);
+    when(courseCacheService.upsertSection(sections.get(0)))
+        .thenThrow(new IllegalStateException("cache failure"));
+    when(courseCacheService.upsertSection(sections.get(1))).thenReturn(true);
+    when(updateCollection.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    var job =
+        UpdateCourseDataJob.builder()
+            .ucsbCurriculumService(ucsbCurriculumService)
+            .courseCacheService(courseCacheService)
+            .updateCollection(updateCollection)
+            .enrollmentDataPointRepository(enrollmentDataPointRepository)
+            .ucsbapiQuarterService(ucsbapiQuarterService)
+            .build();
+
+    job.updateCourses(ctx, "20222", "MATH");
+
+    var update = org.mockito.ArgumentCaptor.forClass(Update.class);
+    verify(updateCollection).save(update.capture());
+    assertEquals(1, update.getValue().getSaved());
+    assertEquals(0, update.getValue().getUpdated());
+    assertEquals(1, update.getValue().getErrors());
+    verify(enrollmentDataPointRepository, never()).save(sections.get(0).getEnrollmentDataPoint());
+    verify(enrollmentDataPointRepository).save(sections.get(1).getEnrollmentDataPoint());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void indexFailurePreservesFreshnessAndNextIfStaleAttemptRetries(boolean previouslyLoaded)
+      throws Exception {
+    List<ConvertedSection> sections =
+        CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B)
+            .convertedSections()
+            .subList(0, 2);
+    when(ucsbCurriculumService.getConvertedSections("MATH", "20222", "A")).thenReturn(sections);
+    when(ucsbapiQuarterService.isQuarterInRegistrationPass("20222")).thenReturn(true);
+    doThrow(new IllegalStateException("duplicate index keys"))
+        .doNothing()
+        .when(courseCacheService)
+        .prepareIndex();
+    // Use the real freshness services so an accidental failure timestamp would skip retrying.
+    var lastUpdate =
+        new AtomicReference<Update>(
+            previouslyLoaded
+                ? new Update(null, "MATH", "20222", 2, 0, 0, LocalDateTime.now().minusDays(2))
+                : null);
+    Update originalUpdate = lastUpdate.get();
+    when(updateCollection.findBySubjectAreaAndQuarter(eq("MATH"), eq("20222"), any()))
+        .thenAnswer(
+            invocation ->
+                new PageImpl<>(lastUpdate.get() == null ? List.of() : List.of(lastUpdate.get())));
+    when(updateCollection.save(any()))
+        .thenAnswer(
+            invocation -> {
+              Update saved = invocation.getArgument(0);
+              saved.setLastUpdate(LocalDateTime.now());
+              lastUpdate.set(saved);
+              return saved;
+            });
+    var updateService = new UpdateService();
+    ReflectionTestUtils.setField(updateService, "updateCollection", updateCollection);
+    var freshnessService = new IsStaleService();
+    ReflectionTestUtils.setField(freshnessService, "updateService", updateService);
+    ReflectionTestUtils.setField(freshnessService, "ucsbApiQuarterService", ucsbapiQuarterService);
+    ReflectionTestUtils.setField(freshnessService, "courseDataStaleThresholdMinutes", 1440);
+    when(ucsbapiQuarterService.getCurrentQuarterYYYYQ()).thenReturn("20222");
+    var job =
+        UpdateCourseDataJob.builder()
+            .start_quarterYYYYQ("20222")
+            .end_quarterYYYYQ("20222")
+            .subjects(List.of("MATH"))
+            .ifStale(true)
+            .isStaleService(freshnessService)
+            .jobRateLimit(jobRateLimit)
+            .ucsbCurriculumService(ucsbCurriculumService)
+            .courseCacheService(courseCacheService)
+            .updateCollection(updateCollection)
+            .enrollmentDataPointRepository(enrollmentDataPointRepository)
+            .ucsbapiQuarterService(ucsbapiQuarterService)
+            .build();
+
+    job.accept(ctx);
+    verify(courseCacheService).prepareIndex();
+    verify(courseCacheService, never()).upsertSection(any());
+    verifyNoInteractions(enrollmentDataPointRepository);
+    verify(updateCollection, never()).save(any());
+    assertEquals(originalUpdate, lastUpdate.get());
+    assertTrue(freshnessService.isStale("MATH", "20222"));
+    assertTrue(jobStarted.getLog().contains("2 errors; freshness timestamp unchanged"));
+
+    when(courseCacheService.upsertSection(any())).thenReturn(true);
+    job.accept(ctx);
+
+    verify(courseCacheService, times(2)).prepareIndex();
+    verify(courseCacheService).upsertSection(sections.get(0));
+    verify(courseCacheService).upsertSection(sections.get(1));
+    verify(enrollmentDataPointRepository).save(sections.get(0).getEnrollmentDataPoint());
+    verify(enrollmentDataPointRepository).save(sections.get(1).getEnrollmentDataPoint());
+    var updates = org.mockito.ArgumentCaptor.forClass(Update.class);
+    verify(updateCollection).save(updates.capture());
+    assertEquals(2, updates.getValue().getSaved());
+    assertEquals(0, updates.getValue().getErrors());
+    assertFalse(freshnessService.isStale("MATH", "20222"));
+
+    // A successful retry restores normal ifStale behavior: the next run skips the API load.
+    job.accept(ctx);
+    verify(ucsbCurriculumService, times(2)).getConvertedSections("MATH", "20222", "A");
+    verify(courseCacheService, times(2)).prepareIndex();
+    verify(updateCollection).save(any());
+  }
+
+  @Test
+  void cancellationStillInterruptsSectionAccountingAfterIndexFailure() throws Exception {
+    List<ConvertedSection> sections =
+        CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B)
+            .convertedSections()
+            .subList(0, 2);
+    when(ucsbCurriculumService.getConvertedSections("MATH", "20222", "A")).thenReturn(sections);
+    doThrow(new IllegalStateException("index failure")).when(courseCacheService).prepareIndex();
+    JobContext cancellingCtx = mock(JobContext.class);
+    doNothing()
+        .doNothing()
+        .doThrow(new JobCancelledException(99L))
+        .when(cancellingCtx)
+        .checkCancellation();
+    var job =
+        UpdateCourseDataJob.builder()
+            .ucsbCurriculumService(ucsbCurriculumService)
+            .courseCacheService(courseCacheService)
+            .updateCollection(updateCollection)
+            .enrollmentDataPointRepository(enrollmentDataPointRepository)
+            .ucsbapiQuarterService(ucsbapiQuarterService)
+            .build();
+
+    assertThrows(
+        JobCancelledException.class, () -> job.updateCourses(cancellingCtx, "20222", "MATH"));
+    verify(cancellingCtx, times(3)).checkCancellation();
+    verify(courseCacheService).prepareIndex();
+    verify(courseCacheService, never()).upsertSection(any());
+    verifyNoInteractions(enrollmentDataPointRepository, updateCollection);
+  }
+
+  @Test
+  void cancellationAfterPreparationStopsBeforeSectionWrites() throws Exception {
+    when(ucsbCurriculumService.getConvertedSections("MATH", "20222", "A"))
+        .thenReturn(
+            CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B).convertedSections());
+    JobContext cancellingCtx = mock(JobContext.class);
+    doNothing().doThrow(new JobCancelledException(99L)).when(cancellingCtx).checkCancellation();
+    var job =
+        UpdateCourseDataJob.builder()
+            .ucsbCurriculumService(ucsbCurriculumService)
+            .courseCacheService(courseCacheService)
+            .updateCollection(updateCollection)
+            .enrollmentDataPointRepository(enrollmentDataPointRepository)
+            .ucsbapiQuarterService(ucsbapiQuarterService)
+            .build();
+    assertThrows(
+        JobCancelledException.class, () -> job.updateCourses(cancellingCtx, "20222", "MATH"));
+    verify(courseCacheService).prepareIndex();
+    verify(courseCacheService, never()).upsertSection(any());
+    verifyNoInteractions(enrollmentDataPointRepository, updateCollection);
+  }
+
+  @Test
+  void emptyLoadDoesNotPrepareIndexOrRecordErrors() throws Exception {
+    when(ucsbCurriculumService.getConvertedSections("MATH", "20222", "A")).thenReturn(List.of());
+    when(updateCollection.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    var job =
+        UpdateCourseDataJob.builder()
+            .ucsbCurriculumService(ucsbCurriculumService)
+            .courseCacheService(courseCacheService)
+            .updateCollection(updateCollection)
+            .enrollmentDataPointRepository(enrollmentDataPointRepository)
+            .ucsbapiQuarterService(ucsbapiQuarterService)
+            .build();
+    job.updateCourses(ctx, "20222", "MATH");
+    verifyNoInteractions(courseCacheService, enrollmentDataPointRepository);
+    var update = org.mockito.ArgumentCaptor.forClass(Update.class);
+    verify(updateCollection).save(update.capture());
+    assertEquals(0, update.getValue().getErrors());
   }
 
   // ────────────────────── checkCancellation checkpoints ──────────────────────
@@ -461,7 +666,7 @@ public class UpdateCourseDataJobTests {
             .end_quarterYYYYQ("20211")
             .subjects(List.of("CMPSC"))
             .ucsbCurriculumService(ucsbCurriculumService)
-            .convertedSectionCollection(convertedSectionCollection)
+            .courseCacheService(courseCacheService)
             .updateCollection(updateCollection)
             .isStaleService(isStaleService)
             .ifStale(false)
@@ -477,8 +682,7 @@ public class UpdateCourseDataJobTests {
   }
 
   @Test
-  void checkCancellation_stops_the_sections_loop_before_saving_the_first_section()
-      throws Exception {
+  void checkCancellation_stops_before_index_preparation() throws Exception {
     String coursePageJson = CoursePageFixtures.COURSE_PAGE_JSON_MATH3B;
     CoursePage coursePage = CoursePage.fromJSON(coursePageJson);
     List<ConvertedSection> result = coursePage.convertedSections();
@@ -487,9 +691,8 @@ public class UpdateCourseDataJobTests {
     when(ucsbapiQuarterService.isQuarterInRegistrationPass(anyString())).thenReturn(false);
 
     JobsRepository jobsRepository = mock(JobsRepository.class);
-    // 3 real checkpoints precede the sections loop's own check under this setup: accept()'s
-    // opening log line, the outer subject-loop's own checkCancellation() (checked above), and
-    // updateCourses' "Updating courses for [...]" log line.
+    // Three checkpoints precede index preparation's cancellation check: accept()'s opening
+    // log line, the outer subject-loop check, and updateCourses' opening log line.
     when(jobsRepository.findById(99L))
         .thenReturn(
             Optional.of(runningJob()),
@@ -505,7 +708,7 @@ public class UpdateCourseDataJobTests {
             .end_quarterYYYYQ("20211")
             .subjects(List.of("CMPSC"))
             .ucsbCurriculumService(ucsbCurriculumService)
-            .convertedSectionCollection(convertedSectionCollection)
+            .courseCacheService(courseCacheService)
             .updateCollection(updateCollection)
             .isStaleService(isStaleService)
             .ifStale(false)
@@ -516,6 +719,6 @@ public class UpdateCourseDataJobTests {
 
     assertThrows(JobCancelledException.class, () -> updateCourseDataJob.accept(cancellingCtx));
 
-    verify(convertedSectionCollection, never()).findOneByQuarterAndEnrollCode(any(), any());
+    verifyNoInteractions(courseCacheService);
   }
 }

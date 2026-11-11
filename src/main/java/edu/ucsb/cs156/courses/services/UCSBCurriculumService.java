@@ -32,6 +32,8 @@ public class UCSBCurriculumService {
 
   @Autowired private ObjectMapper objectMapper;
 
+  @Autowired private CourseCacheService courseCacheService;
+
   @Value("${app.ucsb.api.consumer_key}")
   private String apiKey;
 
@@ -145,6 +147,22 @@ public class UCSBCurriculumService {
     String json = getJSON(subjectArea, quarter, courseLevel);
     CoursePage coursePage = objectMapper.readValue(json, CoursePage.class);
     List<Primary> result = coursePage.getPrimaries();
+    try {
+      List<ConvertedSection> sections = coursePage.convertedSections();
+      if (!sections.isEmpty()) {
+        courseCacheService.prepareIndex();
+      }
+      for (ConvertedSection section : sections) {
+        courseCacheService.upsertSection(section);
+      }
+    } catch (Exception e) {
+      log.error(
+          "Unable to cache live courses for subject {} quarter {} level {}; returning UCSB results",
+          subjectArea,
+          quarter,
+          courseLevel,
+          e);
+    }
     return result;
   }
 
