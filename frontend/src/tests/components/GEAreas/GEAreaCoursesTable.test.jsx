@@ -138,6 +138,62 @@ describe("GEAreaCoursesTable tests", () => {
     ).toHaveTextContent(/^$/);
   });
 
+  test("displays session A and B for summer courses", () => {
+    const courses = [
+      {
+        quarter: "20233",
+        courseId: "CMPSC 156",
+        primary: { session: "00000A" },
+      },
+      {
+        quarter: "20233",
+        courseId: "CMPSC 130A",
+        primary: { session: "00000B" },
+      },
+    ];
+
+    render(<WrappedTable courses={courses} />);
+
+    expect(
+      screen.getByTestId("GEAreaCoursesTable-header-session"),
+    ).toHaveTextContent("Session");
+
+    expect(
+      screen.getByTestId("GEAreaCoursesTable-cell-row-0-col-session"),
+    ).toHaveTextContent("A");
+
+    expect(
+      screen.getByTestId("GEAreaCoursesTable-cell-row-1-col-session"),
+    ).toHaveTextContent("B");
+  });
+
+  test("displays blank session for non-summer or missing data", () => {
+    const courses = [
+      {
+        quarter: "20234",
+        courseId: "CMPSC 156",
+        primary: { session: "00000A" },
+      },
+      {
+        quarter: "20233",
+        courseId: "CMPSC 130A",
+        primary: { session: null },
+      },
+      {
+        quarter: "20233",
+        courseId: "CMPSC 8",
+      },
+    ];
+
+    render(<WrappedTable courses={courses} />);
+
+    for (let i = 0; i < courses.length; i++) {
+      expect(
+        screen.getByTestId(`GEAreaCoursesTable-cell-row-${i}-col-session`),
+      ).toHaveTextContent(/^$/);
+    }
+  });
+
   test("renders fallback values for non-array and object general education values", () => {
     const courses = [
       {
