@@ -62,16 +62,29 @@ export default function CSVDownloadsPage({
     browserLocation.assign(url);
   };
 
+  const ensureThenDownload = async (query, url) => {
+    try {
+      await availability.mutateAsync(query);
+    } catch {
+      // The availability alert reports failure; existing CSV data can still be downloaded.
+    }
+    downloadCsv(url);
+  };
+
   const handleQuarterSubmit = (e) => {
     e.preventDefault();
-    availability.mutate({ startQtr: quarter, endQtr: quarter });
-    downloadCsv(byQuarterUrl);
+    return ensureThenDownload(
+      { startQtr: quarter, endQtr: quarter },
+      byQuarterUrl,
+    );
   };
 
   const handleQuarterSubjectSubmit = (e) => {
     e.preventDefault();
-    availability.mutate({ startQtr: quarter, endQtr: quarter, subjectArea });
-    downloadCsv(byQuarterAndSubjectUrl);
+    return ensureThenDownload(
+      { startQtr: quarter, endQtr: quarter, subjectArea },
+      byQuarterAndSubjectUrl,
+    );
   };
 
   return (
@@ -97,7 +110,11 @@ export default function CSVDownloadsPage({
                   />
                 </div>
 
-                <Button type="submit" variant="primary">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={availability.isLoading}
+                >
                   Download CSV
                 </Button>
               </Form>
@@ -162,7 +179,11 @@ export default function CSVDownloadsPage({
                   />
                 </Form.Group>
 
-                <Button type="submit" variant="primary">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={availability.isLoading}
+                >
                   Download CSV
                 </Button>
               </Form>

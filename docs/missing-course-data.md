@@ -7,6 +7,8 @@ submitted. Live UCSB API searches are unchanged.
 The UI sends a CSRF-protected `POST /api/public/course-data/ensure` with
 `startQtr`, `endQtr`, and optional `subjectArea` independently of the original
 search or download. Existing search response bodies and CSV files are unchanged.
+CSV downloads wait for the availability request to settle before navigating. If
+the request fails, the page reports the failure and still downloads existing data.
 The availability response is a JSON array of user-facing warnings. A failed
 availability request does not discard search results or promise that a load was
 scheduled.
@@ -37,6 +39,11 @@ the existing cache upserts handle concurrent writes. Broad historical searches
 can enqueue many distinct subject/quarter jobs. Five minutes is an invitation
 to recheck, not a completion guarantee.
 
+The building-search form has a Refresh classrooms button. After a missing-data
+update finishes, users can refresh the room options without changing their quarter,
+building, or room selection or submitting another course search. This is an explicit
+refresh, not background polling. Production startup and scheduled jobs are unchanged.
+
 ## Manual verification
 
 1. With a populated subject catalog, search a known unloaded subject/quarter.
@@ -53,6 +60,8 @@ to recheck, not a completion guarantee.
 5. Simulate an availability HTTP/network failure. Search results should still
    render, and the warning should say that checking/scheduling failed, without
    claiming that an update was scheduled.
+6. On building search, submit an unloaded quarter, wait for the update, and click
+   Refresh classrooms. Confirm newly loaded rooms appear with the filters intact.
 
 Automated tests cover SQL concurrency, active/terminal job states, executor
 rejection recovery, freshness-record detection, all five pages, warning reset,

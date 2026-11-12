@@ -75,6 +75,55 @@ describe("CSVDownloadsPage tests", () => {
     };
   };
 
+  test.each([0, 1])(
+    "download form %i waits for availability before navigating",
+    async (formIndex) => {
+      let finishAvailability;
+      axiosMock.onPost("/api/public/course-data/ensure").reply(
+        () =>
+          new Promise((resolve) => {
+            finishAvailability = resolve;
+          }),
+      );
+      const { assignMock, browserLocation } = mockLocationAssign();
+      renderPage(browserLocation);
+      const buttons = await screen.findAllByRole("button", {
+        name: "Download CSV",
+      });
+      fireEvent.submit(buttons[formIndex].closest("form"));
+      await waitFor(() => expect(finishAvailability).toBeTypeOf("function"));
+      expect(assignMock).not.toHaveBeenCalled();
+      await waitFor(() =>
+        buttons.forEach((button) => expect(button).toBeDisabled()),
+      );
+      finishAvailability([200, []]);
+      await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        buttons.forEach((button) => expect(button).toBeEnabled()),
+      );
+    },
+  );
+
+  test.each([0, 1])(
+    "download form %i still downloads existing data on scheduling failure",
+    async (formIndex) => {
+      axiosMock.onPost("/api/public/course-data/ensure").networkError();
+      const { assignMock, browserLocation } = mockLocationAssign();
+      renderPage(browserLocation);
+      const buttons = await screen.findAllByRole("button", {
+        name: "Download CSV",
+      });
+      fireEvent.submit(buttons[formIndex].closest("form"));
+      await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Could not check course data availability or schedule an update",
+      );
+      expect(
+        screen.queryByText(/scheduled or already running/),
+      ).not.toBeInTheDocument();
+    },
+  );
+
   test("renders correctly", async () => {
     renderPage();
 
@@ -138,7 +187,7 @@ describe("CSVDownloadsPage tests", () => {
     fireEvent.change(quarterDropdown, { target: { value: "20242" } });
     fireEvent.submit(byQuarterForm);
 
-    expect(assignMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
     expect(assignMock).toHaveBeenCalledWith(
       "/api/courses/csv/quarter?yyyyq=20242",
     );
@@ -190,7 +239,7 @@ describe("CSVDownloadsPage tests", () => {
     fireEvent.click(withTimeLocationsCheckbox);
     fireEvent.submit(byQuarterAndSubjectForm);
 
-    expect(assignMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
     expect(assignMock).toHaveBeenCalledWith(
       "/api/courses/csv/byQuarterAndSubjectArea?yyyyq=20242&subjectArea=CMPSC&level=G&omitSections=false&withTimeLocations=false",
     );
@@ -217,7 +266,7 @@ describe("CSVDownloadsPage tests", () => {
     })[1];
     fireEvent.submit(byQuarterAndSubjectButton.closest("form"));
 
-    expect(assignMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
     expect(assignMock).toHaveBeenCalledWith(
       "/api/courses/csv/byQuarterAndSubjectArea?yyyyq=20221&subjectArea=ANTH&level=U&omitSections=true&withTimeLocations=true",
     );
