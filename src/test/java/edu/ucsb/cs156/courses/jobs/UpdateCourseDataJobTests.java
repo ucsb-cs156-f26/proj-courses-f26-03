@@ -535,7 +535,15 @@ public class UpdateCourseDataJobTests {
     verify(updateCollection, never()).save(any());
     assertEquals(originalUpdate, lastUpdate.get());
     assertTrue(freshnessService.isStale("MATH", "20222"));
-    assertTrue(jobStarted.getLog().contains("2 errors; freshness timestamp unchanged"));
+    assertTrue(
+        jobStarted
+            .getLog()
+            .lines()
+            .anyMatch(
+                line ->
+                    line.equals(
+                        "Skipped update for [MATH 20222]: course index preparation failed; "
+                            + "2 errors; freshness timestamp unchanged")));
 
     when(courseCacheService.upsertSection(any())).thenReturn(true);
     job.accept(ctx);
