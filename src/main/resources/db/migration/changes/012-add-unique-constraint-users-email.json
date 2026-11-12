@@ -1,0 +1,23 @@
+{
+  "databaseChangeLog": [
+    {
+      "changeSet": {
+        "id": "012-add-unique-constraint-users-email",
+        "author": "jasonwu700",
+        "preConditions": [
+          { "onFail": "MARK_RAN" },
+          { "not": { "uniqueConstraintExists": { "tableName": "users", "constraintName": "uk_users_email" } } }
+        ],
+        "changes": [
+          {
+            "addUniqueConstraint": {
+              "tableName": "users",
+              "columnNames": "email",
+              "constraintName": "uk_users_email"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
