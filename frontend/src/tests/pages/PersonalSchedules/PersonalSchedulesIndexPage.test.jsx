@@ -12,6 +12,16 @@ import { systemInfoFixtures } from "fixtures/systemInfoFixtures";
 import { personalScheduleFixtures } from "fixtures/personalScheduleFixtures";
 import userEvent from "@testing-library/user-event";
 
+const mockNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const originalModule = await vi.importActual("react-router-dom");
+  return {
+    __esModule: true,
+    ...originalModule,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 const mockToast = vi.fn();
 vi.mock("react-toastify", async () => {
   const originalModule = await vi.importActual("react-toastify");
@@ -122,6 +132,8 @@ describe("PersonalSchedulesIndexPage tests", () => {
     expect(addButton).toBeInTheDocument();
 
     await userEvent.click(addButton);
+
+    expect(mockNavigate).toHaveBeenCalledWith("/personalschedules/create");
   });
 
   test("renders three PersonalSchedules without crashing for admin user", async () => {
