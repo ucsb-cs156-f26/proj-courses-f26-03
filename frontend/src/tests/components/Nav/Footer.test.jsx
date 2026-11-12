@@ -140,4 +140,18 @@ describe("Footer tests", () => {
       screen.queryByTestId("footer-feedback-modal-link"),
     ).not.toBeInTheDocument();
   });
+
+  test.each(["Close", "Open Feedback Form"])(
+    "Feedback modal closes when %s is clicked",
+    (name) => {
+      render(<Footer systemInfo={systemInfoFixtures.withFeedbackUrl} />);
+
+      fireEvent.click(screen.getByTestId("footer-feedback-button"));
+      expect(screen.getByRole("dialog")).toBeVisible();
+
+      fireEvent.click(screen.getByRole("button", { name }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    },
+  );
 });

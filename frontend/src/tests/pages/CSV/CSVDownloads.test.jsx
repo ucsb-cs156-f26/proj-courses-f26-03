@@ -39,6 +39,7 @@ describe("CSVDownloadsPage tests", () => {
     localStorage.setItem("CSVDownloads.Subject", "ANTH");
     localStorage.setItem("CSVDownloads.Level", "U");
     axiosMock.reset();
+    axiosMock.onPost("/api/public/course-data/ensure").reply(200, []);
     axiosMock
       .onGet("/api/currentUser")
       .reply(200, apiCurrentUserFixtures.userOnly);
@@ -122,6 +123,9 @@ describe("CSVDownloadsPage tests", () => {
   });
 
   test("submitting by-quarter form downloads selected quarter", async () => {
+    const warning =
+      "Course data for CMPSC in quarter 20242 has not been loaded. A background update is scheduled or already running. Please check back in 5 minutes.";
+    axiosMock.onPost("/api/public/course-data/ensure").reply(200, [warning]);
     const { assignMock, browserLocation } = mockLocationAssign();
     renderPage(browserLocation);
 
@@ -138,9 +142,18 @@ describe("CSVDownloadsPage tests", () => {
     expect(assignMock).toHaveBeenCalledWith(
       "/api/courses/csv/quarter?yyyyq=20242",
     );
+    expect(await screen.findByRole("alert")).toHaveTextContent(warning);
+    expect(axiosMock.history.post[0].params).toEqual({
+      startQtr: "20242",
+      endQtr: "20242",
+      subjectArea: undefined,
+    });
   });
 
   test("submitting by-quarter-and-subject form includes all endpoint parameters", async () => {
+    const warning =
+      "Course data for CMPSC in quarter 20242 has not been loaded. A background update is scheduled or already running. Please check back in 5 minutes.";
+    axiosMock.onPost("/api/public/course-data/ensure").reply(200, [warning]);
     const { assignMock, browserLocation } = mockLocationAssign();
     renderPage(browserLocation);
 
@@ -181,6 +194,12 @@ describe("CSVDownloadsPage tests", () => {
     expect(assignMock).toHaveBeenCalledWith(
       "/api/courses/csv/byQuarterAndSubjectArea?yyyyq=20242&subjectArea=CMPSC&level=G&omitSections=false&withTimeLocations=false",
     );
+    expect(await screen.findByRole("alert")).toHaveTextContent(warning);
+    expect(axiosMock.history.post[0].params).toEqual({
+      startQtr: "20242",
+      endQtr: "20242",
+      subjectArea: "CMPSC",
+    });
   });
 
   test("submitting by-quarter-and-subject form includes default parameters", async () => {

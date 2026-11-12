@@ -5,6 +5,8 @@ import SingleQuarterDropdown from "main/components/Quarters/SingleQuarterDropdow
 import SingleSubjectDropdown from "main/components/Subjects/SingleSubjectDropdown";
 import SingleLevelDropdown from "main/components/Levels/SingleLevelDropdown";
 import { useBackend } from "main/utils/useBackend";
+import { useCourseDataAvailability } from "main/utils/useCourseSearchMutation";
+import CourseDataWarnings from "main/components/Common/CourseDataWarnings";
 import { useSystemInfo } from "main/utils/systemInfo";
 import { quarterRange } from "main/utils/quarterUtilities";
 
@@ -20,6 +22,7 @@ export default function CSVDownloadsPage({
   browserLocation = window.location,
 }) {
   const { data: systemInfo } = useSystemInfo();
+  const availability = useCourseDataAvailability();
 
   // Stryker disable OptionalChaining
   const startQtr = systemInfo?.startQtrYYYYQ || "20211";
@@ -61,11 +64,13 @@ export default function CSVDownloadsPage({
 
   const handleQuarterSubmit = (e) => {
     e.preventDefault();
+    availability.mutate({ startQtr: quarter, endQtr: quarter });
     downloadCsv(byQuarterUrl);
   };
 
   const handleQuarterSubjectSubmit = (e) => {
     e.preventDefault();
+    availability.mutate({ startQtr: quarter, endQtr: quarter, subjectArea });
     downloadCsv(byQuarterAndSubjectUrl);
   };
 
@@ -73,6 +78,7 @@ export default function CSVDownloadsPage({
     <BasicLayout>
       <div className="container mt-3">
         <h1>CSV Downloads</h1>
+        <CourseDataWarnings availability={availability} />
 
         <Accordion defaultActiveKey="by-quarter" className="mt-3">
           {/* Download by Quarter */}

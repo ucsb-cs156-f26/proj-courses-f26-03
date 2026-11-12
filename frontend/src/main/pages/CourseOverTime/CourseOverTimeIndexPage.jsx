@@ -1,7 +1,8 @@
 import { useState } from "react";
 import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
 import CourseOverTimeSearchForm from "main/components/BasicCourseSearch/CourseOverTimeSearchForm";
-import { useBackendMutation } from "main/utils/useBackend";
+import { useCourseSearchMutation } from "main/utils/useCourseSearchMutation";
+import CourseDataWarnings from "main/components/Common/CourseDataWarnings";
 import SectionsTable from "main/components/Sections/SectionsTable";
 
 export default function CourseOverTimeIndexPage() {
@@ -25,7 +26,7 @@ export default function CourseOverTimeIndexPage() {
     setHasSearched(true);
   };
 
-  const mutation = useBackendMutation(
+  const mutation = useCourseSearchMutation(
     objectToAxiosParams,
     { onSuccess },
     // Stryker disable next-line all : hard to set up test for caching
@@ -39,6 +40,7 @@ export default function CourseOverTimeIndexPage() {
   return (
     <BasicLayout>
       <div className="pt-2">
+        <CourseDataWarnings availability={mutation.availability} />
         <h5>UCSB Course History Search</h5>
         <CourseOverTimeSearchForm fetchJSON={fetchCourseOverTimeJSON} />
         {mutation.isLoading && (

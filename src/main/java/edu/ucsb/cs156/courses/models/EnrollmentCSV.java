@@ -18,7 +18,7 @@ public class EnrollmentCSV {
   private String enrollCd;
   private String courseId;
   private String section;
-  private int enrollment;
+  private Integer enrollment;
   private LocalDateTime dateCreated;
 
   public static EnrollmentCSV fromEntity(EnrollmentDataPoint edp) {

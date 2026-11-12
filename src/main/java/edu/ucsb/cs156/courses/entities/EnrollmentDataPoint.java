@@ -37,7 +37,7 @@ public class EnrollmentDataPoint {
   private String enrollCd;
   private String courseId; // redundant but useful for querying since enrollCd is in Mongo
   private String section; // redundant but useful for querying since enrollCd is in Mongo
-  private int enrollment;
+  private Integer enrollment;
 
   @CreatedDate
   @Column(updatable = false)
