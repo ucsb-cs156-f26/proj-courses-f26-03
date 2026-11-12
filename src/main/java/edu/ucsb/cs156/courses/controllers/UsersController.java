@@ -36,6 +36,51 @@ public class UsersController extends ApiController {
     return ResponseEntity.ok().body(body);
   }
 
+  @Operation(summary = "Search users by email, first name, last name or full name, with pages")
+  @PreAuthorize("hasRole('ROLE_ADMIN')")
+  @GetMapping("/q")
+  public Iterable<User> usersByNameAndEmail(
+      @Parameter(
+              name = "searchString",
+              description = "text to look for in email and names, case-insensitive",
+              example = "gaucho",
+              required = true)
+          @RequestParam
+          String searchString,
+      @Parameter(
+              name = "page",
+              description = "what page of the data",
+              example = "0",
+              required = true)
+          @RequestParam
+          int page,
+      @Parameter(
+              name = "pageSize",
+              description = "size of each page",
+              example = "5",
+              required = true)
+          @RequestParam
+          int pageSize,
+      @Parameter(
+              name = "sortField",
+              description = "field to sort by",
+              example = "email",
+              required = true)
+          @RequestParam
+          String sortField,
+      @Parameter(
+              name = "sortDirection",
+              description = "sort direction",
+              example = "ASC",
+              required = true)
+          @RequestParam
+          String sortDirection) {
+    PageRequest pageRequest = buildPageRequest(page, pageSize, sortField, sortDirection);
+    return userRepository
+        .findByEmailContainingIgnoreCaseOrGivenNameContainingIgnoreCaseOrFamilyNameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+            searchString, searchString, searchString, searchString, pageRequest);
+  }
+
   @Operation(summary = "Get a list of all users with pages")
   @PreAuthorize("hasRole('ROLE_ADMIN')")
   @GetMapping(params = {"page", "pageSize", "sortField", "sortDirection"})
@@ -69,6 +114,14 @@ public class UsersController extends ApiController {
           @RequestParam
           String sortDirection)
       throws JsonProcessingException {
+    PageRequest pageRequest = buildPageRequest(page, pageSize, sortField, sortDirection);
+
+    Iterable<User> users = userRepository.findAll(pageRequest);
+    return users;
+  }
+
+  private PageRequest buildPageRequest(
+      int page, int pageSize, String sortField, String sortDirection) {
     List<String> allowedSortFields = Arrays.asList("givenName", "familyName", "email");
     if (!allowedSortFields.contains(sortField)) {
       throw new IllegalArgumentException(
@@ -89,9 +142,6 @@ public class UsersController extends ApiController {
       sortDirectionObject = Direction.DESC;
     }
 
-    PageRequest pageRequest = PageRequest.of(page, pageSize, sortDirectionObject, sortField);
-
-    Iterable<User> users = userRepository.findAll(pageRequest);
-    return users;
+    return PageRequest.of(page, pageSize, sortDirectionObject, sortField);
   }
 }
