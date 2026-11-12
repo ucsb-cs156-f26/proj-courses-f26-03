@@ -35,6 +35,8 @@ describe("UsersSearchForm tests", () => {
     expect(screen.getByLabelText("Sort By")).toBeInTheDocument();
     expect(screen.getByLabelText("Sort Direction")).toBeInTheDocument();
     expect(screen.getByLabelText("Page Size")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search")).toHaveValue("");
   });
 
   test("when I select a sortField, the state for sortField changes", async () => {
