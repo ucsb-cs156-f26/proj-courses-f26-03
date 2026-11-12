@@ -65,8 +65,8 @@ function PersonalScheduleForm({
           {...register("name", {
             required: "Name is required.",
             maxLength: {
-              value: 15,
-              message: "Max length 15 characters",
+              value: 25,
+              message: "Max length 25 characters",
             },
           })}
         />
