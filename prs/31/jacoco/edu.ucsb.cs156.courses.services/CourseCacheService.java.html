@@ -27,7 +27,7 @@ public class CourseCacheService {
   public void prepareIndex() {
 <span class="fc" id="L28">    mongoTemplate</span>
 <span class="fc" id="L29">        .indexOps(ConvertedSection.class)</span>
-<span class="fc" id="L30">        .ensureIndex(</span>
+<span class="fc" id="L30">        .createIndex(</span>
             new Index()
 <span class="fc" id="L32">                .on(&quot;courseInfo.quarter&quot;, Direction.ASC)</span>
 <span class="fc" id="L33">                .on(&quot;section.enrollCode&quot;, Direction.ASC)</span>
