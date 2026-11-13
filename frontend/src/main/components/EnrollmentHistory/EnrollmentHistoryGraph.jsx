@@ -22,12 +22,11 @@ export const PassMarkerBar = ({ x, y, width, height, payload }) => {
   if (payload.isSpacer) {
     return null;
   }
-  const pixelsPerStudent =
-    payload.enrollment > 0 ? height / payload.enrollment : 0;
+  const pixelsPerStudent = height / payload.enrollment;
   return (
     <g data-testid={`enrollment-bar-${payload.key}`}>
       <rect x={x} y={y} width={width} height={height} fill={payload.color} />
-      {pixelsPerStudent > 0 &&
+      {payload.enrollment > 0 &&
         PASS_LINES.filter((line) => payload[line.key] != null).map((line) => {
           const value = Math.min(payload[line.key], payload.enrollment);
           const lineY = y + height - value * pixelsPerStudent;
