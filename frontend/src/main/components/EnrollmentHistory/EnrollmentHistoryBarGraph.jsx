@@ -9,17 +9,15 @@ import {
   TOTAL_BAR_COLOR,
 } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
 
-// Pass 1 is solid, pass 2 is dotted; the legend says which is which.
 const PASS_LINES = [
-  { key: "pass1", label: "End of Pass 1", dash: undefined },
+  { key: "pass1", label: "End of Pass 1" },
   { key: "pass2", label: "End of Pass 2", dash: "4 3" },
 ];
 
 // Above this many classes, instructor names are drawn diagonally to fit.
 const MAX_FLAT_LABELS = 6;
 
-// Draws one bar in its color, with a line at the pass 1 and pass 2 values.
-// A pass value above the final enrollment is drawn at the top of the bar.
+// A bar with its pass lines, capped at the top of the bar.
 export const PassMarkerBar = ({ x, y, width, height, payload }) => {
   if (payload.isSpacer) {
     return null;
@@ -53,9 +51,8 @@ export const PassMarkerBar = ({ x, y, width, height, payload }) => {
   );
 };
 
-// X-axis label: the instructor's name, bold, centered under all of a class's
-// bars. The tick sits under the class's first bar; bars are evenly spaced
-// across the axis width, so shift right by half the class's extra bars.
+// Instructor name centered under a class's bars. The tick sits under the
+// class's first bar, so shift right by half the width of the remaining bars.
 export const EnrollmentBarTick = ({
   x,
   y,
@@ -88,7 +85,6 @@ export const EnrollmentBarTick = ({
   );
 };
 
-// Color key for sections and Total, plus the two pass line styles.
 export const EnrollmentLegend = ({ sectionCount }) => {
   const items = [
     ...Array.from({ length: sectionCount }, (_, i) => ({
@@ -130,7 +126,6 @@ export const EnrollmentLegend = ({ sectionCount }) => {
   );
 };
 
-// Bar chart of one quarter's enrollment, grouped by class.
 const EnrollmentHistoryBarGraph = ({
   data,
   yyyyq,
@@ -141,7 +136,6 @@ const EnrollmentHistoryBarGraph = ({
   const classes = createEnrollmentBarChartData(data, yyyyq, passDates);
   const rows = createEnrollmentBarRows(classes, instructors);
   const diagonal = classes.length > MAX_FLAT_LABELS;
-  // Bigger names when one or two lectures each get a wide stretch of axis
   const labelFontSize = classes.length <= 2 ? 18 : 12;
 
   return (

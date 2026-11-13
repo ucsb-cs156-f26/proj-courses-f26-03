@@ -105,7 +105,7 @@ export default function CourseDetailsIndexPage() {
     isSameCourse(dataPoint.courseId, courseId),
   );
 
-  // Fetch pass dates for the P1/P2 markers
+  // Pass dates for the pass lines
   const { data: allQuarters } = useBackend(
     ["/api/public/allQuarters"],
     { method: "GET", url: "/api/public/allQuarters" },
@@ -114,7 +114,7 @@ export default function CourseDetailsIndexPage() {
   const enrollmentPassDates =
     allQuarters.find((quarter) => quarter.quarter === enrollmentQuarter) || {};
 
-  // Fetch the selected quarter's lectures to label bars with instructors
+  // Lectures in the selected quarter, for instructor names
   const { data: enrollmentPrimaries } = useBackend(
     // Stryker disable all : hard to test for query caching
     [

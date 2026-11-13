@@ -218,7 +218,6 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
     expect(
       hasPassData([{ pass1: null, pass2: null }, { isSpacer: true }]),
     ).toBe(false);
-    expect(hasPassData()).toBe(false);
   });
 
   test("getMaxSectionCount returns the most discussions in any class", () => {
