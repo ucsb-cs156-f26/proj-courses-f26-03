@@ -21,3 +21,31 @@ export const threeCourses = Template.bind({});
 threeCourses.args = {
   details: personalSectionsFixtures.threePersonalSections,
 };
+
+const baseCourse = personalSectionsFixtures.threePersonalSections[0];
+
+const makeSessionCourse = (quarter, session) => ({
+  ...baseCourse,
+  quarter,
+  classSections: [
+    {
+      ...baseCourse.classSections[0],
+      session,
+    },
+  ],
+});
+
+export const SummerSessions = Template.bind({});
+
+SummerSessions.args = {
+  details: [
+    makeSessionCourse("20233", "00000A"),
+    makeSessionCourse("20233", "00000B"),
+  ],
+};
+
+export const NonSummer = Template.bind({});
+
+NonSummer.args = {
+  details: [makeSessionCourse("20234", "00000A")],
+};
