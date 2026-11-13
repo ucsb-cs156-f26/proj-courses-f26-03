@@ -147,34 +147,37 @@ export const getSectionBarColor = (index) =>
   sectionBarColors[index % sectionBarColors.length];
 
 // Flattens classes into the left-to-right list of bars Recharts draws, with
-// an empty gap bar between classes. Discussions are labelled "Section 1",
-// "Section 2", ...; the Total bar is labelled with the lecture's instructor.
+// an empty gap bar between classes and the lecture's instructor (or its
+// section number if unknown) under the class's middle bar.
 export const createEnrollmentBarRows = (classes = [], instructors = {}) => {
   const rows = [];
   classes.forEach((classData, classIndex) => {
     const { lectureSection } = classData;
     if (classIndex > 0) {
-      rows.push({ key: `gap-${lectureSection}`, label: "", isSpacer: true });
+      rows.push({ key: `gap-${lectureSection}`, isSpacer: true });
     }
-    classData.discussions.forEach((bar, index) =>
-      rows.push({
-        ...bar,
-        key: `${lectureSection}-${bar.section}`,
-        label: `Section ${index + 1}`,
-        color: getSectionBarColor(index),
-      }),
-    );
+    const classRows = classData.discussions.map((bar, index) => ({
+      ...bar,
+      key: `${lectureSection}-${bar.section}`,
+      color: getSectionBarColor(index),
+    }));
     if (classData.total) {
-      rows.push({
+      classRows.push({
         ...classData.total,
         key: `${lectureSection}-total`,
-        label: instructors[lectureSection] || `Lecture ${lectureSection}`,
         color: TOTAL_BAR_COLOR,
       });
     }
+    classRows[Math.floor((classRows.length - 1) / 2)].groupLabel =
+      instructors[lectureSection] || `Lecture ${lectureSection}`;
+    rows.push(...classRows);
   });
   return rows;
 };
+
+// Most discussion sections any class has, so the legend lists each color.
+export const getMaxSectionCount = (classes = []) =>
+  Math.max(0, ...classes.map((classData) => classData.discussions.length));
 
 // Maps each lecture section (e.g. "0100") to its instructor names, from the
 // course-over-time search results for this course.
@@ -186,15 +189,6 @@ export const getLectureInstructors = (primaries = [], courseId = "") =>
         p.primary.section,
         p.primary.instructors.map((i) => i.instructor).join(", "),
       ]),
-  );
-
-// Highest value any bar or pass line reaches, so the y-axis fits them all.
-export const getMaxEnrollment = (rows = []) =>
-  Math.max(
-    0,
-    ...rows
-      .flatMap((row) => [row.enrollment, row.pass1, row.pass2])
-      .filter((value) => value != null),
   );
 
 // True if a courseId (e.g. "CMPSC   130A -1" or "CMPSC   130A ") is this

@@ -6,9 +6,13 @@ import {
 } from "fixtures/enrollmentDataPointFixtures";
 import EnrollmentHistoryBarGraph, {
   EnrollmentBarTick,
+  EnrollmentLegend,
   PassMarkerBar,
 } from "main/components/EnrollmentHistory/EnrollmentHistoryBarGraph";
-import { sectionBarColors } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
+import {
+  sectionBarColors,
+  TOTAL_BAR_COLOR,
+} from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
 
 global.ResizeObserver = class {
   observe() {}
@@ -51,11 +55,10 @@ describe("EnrollmentHistoryBarGraph", () => {
     expect(screen.getByTestId("enrollment-bar-0200-total")).toBeInTheDocument();
     expect(screen.getByText("CONRAD P T")).toBeInTheDocument();
     expect(screen.getByText("Lecture 0200")).toBeInTheDocument();
-    expect(screen.getAllByText("Section 1").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("enrollment-legend")).toBeInTheDocument();
     expect(
       screen.getByTestId("pass-marker-0100-total-pass2"),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Blue bars are each lecture/)).toBeInTheDocument();
   });
 
   test("uses the default title and shows a message when there is no data", () => {
@@ -64,7 +67,7 @@ describe("EnrollmentHistoryBarGraph", () => {
     expect(
       screen.getByText("No enrollment data for this quarter."),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Blue bars/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("enrollment-legend")).not.toBeInTheDocument();
   });
 });
 
@@ -96,11 +99,27 @@ describe("PassMarkerBar", () => {
     expect(p1).toHaveAttribute("x2", "50");
     expect(p1).toHaveAttribute("y1", "160");
     expect(p1).toHaveAttribute("y2", "160");
-    expect(p1).toHaveAttribute("stroke-dasharray", "4 3");
-    // 75 of 100: 220 - 150 = 70; a line above the bar is allowed
+    expect(p1).not.toHaveAttribute("stroke-dasharray");
+    // 75 of 100: 220 - 150 = 70
     const p2 = screen.getByTestId("pass-marker-0100-0101-pass2");
     expect(p2).toHaveAttribute("y1", "70");
-    expect(p2).not.toHaveAttribute("stroke-dasharray");
+    expect(p2).toHaveAttribute("stroke-dasharray", "4 3");
+  });
+
+  test("caps a pass line above the final enrollment at the top of the bar", () => {
+    renderInSvg(
+      <PassMarkerBar
+        x={10}
+        y={20}
+        width={40}
+        height={200}
+        payload={{ ...row, pass2: 120 }}
+      />,
+    );
+    expect(screen.getByTestId("pass-marker-0100-0101-pass2")).toHaveAttribute(
+      "y1",
+      "20",
+    );
   });
 
   test("skips unknown passes and empty bars", () => {
@@ -139,18 +158,71 @@ describe("PassMarkerBar", () => {
 });
 
 describe("EnrollmentBarTick", () => {
-  test("shows the bar's label rotated at the tick position", () => {
+  const rows = [
+    { key: "0100-0101" },
+    { key: "0100-total", groupLabel: "CONRAD P T" },
+  ];
+
+  test("shows the instructor in bold under the class's middle bar", () => {
     renderInSvg(
       <EnrollmentBarTick
         x={5}
         y={6}
-        payload={{ value: "0100-0101" }}
-        rows={[{ key: "0100-0101", label: "Section 1" }]}
+        payload={{ value: "0100-total" }}
+        rows={rows}
       />,
     );
-    const label = screen.getByText("Section 1");
+    const label = screen.getByText("CONRAD P T");
     expect(label).toHaveAttribute("x", "5");
-    expect(label).toHaveAttribute("y", "6");
-    expect(label).toHaveAttribute("transform", "rotate(-40, 5, 6)");
+    expect(label).toHaveAttribute("font-weight", "bold");
+    expect(label).toHaveAttribute("text-anchor", "middle");
+    expect(label).not.toHaveAttribute("transform");
+  });
+
+  test("draws the name diagonally when asked", () => {
+    renderInSvg(
+      <EnrollmentBarTick
+        x={5}
+        y={6}
+        payload={{ value: "0100-total" }}
+        rows={rows}
+        diagonal
+      />,
+    );
+    expect(screen.getByText("CONRAD P T")).toHaveAttribute(
+      "transform",
+      "rotate(-35, 5, 6)",
+    );
+  });
+
+  test("draws nothing under other bars", () => {
+    const { container } = renderInSvg(
+      <EnrollmentBarTick payload={{ value: "0100-0101" }} rows={rows} />,
+    );
+    expect(container.querySelector("text")).toBeNull();
+  });
+});
+
+describe("EnrollmentLegend", () => {
+  test("lists each section color, Total, and both pass lines", () => {
+    const { container } = render(<EnrollmentLegend sectionCount={2} />);
+    expect(screen.getByText("Section 1")).toBeInTheDocument();
+    expect(screen.getByText("Section 2")).toBeInTheDocument();
+    expect(screen.queryByText("Section 3")).not.toBeInTheDocument();
+    expect(screen.getByText("Total")).toBeInTheDocument();
+    expect(screen.getByText("End of Pass 1")).toBeInTheDocument();
+    expect(screen.getByText("End of Pass 2")).toBeInTheDocument();
+    const fills = [...container.querySelectorAll("rect")].map((r) =>
+      r.getAttribute("fill"),
+    );
+    expect(fills).toEqual([
+      sectionBarColors[0],
+      sectionBarColors[1],
+      TOTAL_BAR_COLOR,
+    ]);
+    const dashes = [...container.querySelectorAll("line")].map((l) =>
+      l.getAttribute("stroke-dasharray"),
+    );
+    expect(dashes).toEqual([null, "4 3"]);
   });
 });

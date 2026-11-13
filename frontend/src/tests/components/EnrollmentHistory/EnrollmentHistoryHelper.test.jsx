@@ -6,7 +6,7 @@ import {
   getEnrollmentQuarters,
   getLectureSection,
   getLectureInstructors,
-  getMaxEnrollment,
+  getMaxSectionCount,
   getSectionBarColor,
   isLectureSection,
   isSameCourse,
@@ -162,21 +162,20 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
         "gap-0300",
         "0300-0301",
       ]);
-      expect(rows.map((r) => r.label)).toEqual([
-        "Section 1",
-        "Section 2",
-        "Lecture 0100",
-        "",
-        "Lecture 0200",
-        "",
-        "Section 1",
-      ]);
       expect(rows[3].isSpacer).toBe(true);
     });
 
-    test("labels the Total bar with the lecture's instructor", () => {
-      expect(named[2].label).toBe("CONRAD P T");
-      expect(named[4].label).toBe("Lecture 0200");
+    test("puts the instructor (or lecture) under each class's middle bar", () => {
+      expect(rows.map((r) => r.groupLabel)).toEqual([
+        undefined,
+        "Lecture 0100",
+        undefined,
+        undefined,
+        "Lecture 0200",
+        undefined,
+        "Lecture 0300",
+      ]);
+      expect(named[1].groupLabel).toBe("CONRAD P T");
     });
 
     test("colors discussions by position and Total in blue", () => {
@@ -201,15 +200,15 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
     });
   });
 
-  test("getMaxEnrollment covers bars and pass lines, ignoring gaps", () => {
+  test("getMaxSectionCount returns the most discussions in any class", () => {
     expect(
-      getMaxEnrollment([
-        { enrollment: 10, pass1: 12, pass2: null },
-        { isSpacer: true },
-        { enrollment: 11, pass1: 3, pass2: 9 },
+      getMaxSectionCount([
+        { discussions: [1, 2] },
+        { discussions: [1, 2, 3] },
+        { discussions: [] },
       ]),
-    ).toBe(12);
-    expect(getMaxEnrollment()).toBe(0);
+    ).toBe(3);
+    expect(getMaxSectionCount()).toBe(0);
   });
 
   test("getLectureInstructors maps lecture sections to instructors", () => {
