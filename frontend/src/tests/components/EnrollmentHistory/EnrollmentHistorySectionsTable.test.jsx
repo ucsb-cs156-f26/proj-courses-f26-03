@@ -58,6 +58,16 @@ describe("EnrollmentHistorySectionsTable tests", () => {
     ).toHaveAttribute("href", "/coursedetails/20244/30247");
   });
 
+  test("links the course id to the course details page in a new tab", () => {
+    renderTable();
+    const link = within(cell(0, "courseId")).getByTestId(
+      `${testid}-row-0-col-detail-link`,
+    );
+    expect(link).toHaveAttribute("href", "/coursedetails/20244/30247");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
   test("hides the lecture suffix from the course id", () => {
     const sections = [
       { ...primaryFixtures.f24_math_lowerDiv[0], courseId: "MATH      2A -1" },
