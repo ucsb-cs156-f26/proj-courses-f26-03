@@ -3,68 +3,65 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   createEnrollmentBarChartData,
   createEnrollmentBarRows,
-  getPassMarkers,
+  getMaxEnrollment,
 } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
 
-// Draws one bar in its color, with a labelled line at each pass.
+// Pass 1 is dashed, pass 2 is solid; no text labels so they never overlap.
+const PASS_LINES = [
+  { key: "pass1", dash: "4 3" },
+  { key: "pass2", dash: undefined },
+];
+
+// Draws one bar in its color, with a line at the pass 1 and pass 2 values.
 export const PassMarkerBar = ({ x, y, width, height, payload }) => {
   if (payload.isSpacer) {
     return null;
   }
+  const pixelsPerStudent =
+    payload.enrollment > 0 ? height / payload.enrollment : 0;
   return (
     <g data-testid={`enrollment-bar-${payload.key}`}>
       <rect x={x} y={y} width={width} height={height} fill={payload.color} />
-      {getPassMarkers(payload).map((marker) => {
-        const markerY = y + height * (1 - marker.value / payload.enrollment);
-        return (
-          <g
-            key={marker.label}
-            data-testid={`pass-marker-${payload.key}-${marker.label}`}
-          >
-            {/* Stryker disable all: line and label styling */}
+      {pixelsPerStudent > 0 &&
+        PASS_LINES.filter((line) => payload[line.key] != null).map((line) => {
+          const lineY = y + height - payload[line.key] * pixelsPerStudent;
+          return (
             <line
+              key={line.key}
+              data-testid={`pass-marker-${payload.key}-${line.key}`}
+              // Stryker disable all: line styling
               x1={x}
               x2={x + width}
-              y1={markerY}
-              y2={markerY}
+              y1={lineY}
+              y2={lineY}
               stroke="#212529"
               strokeWidth={2}
+              strokeDasharray={line.dash}
+              // Stryker restore all
             />
-            <text
-              x={x + 3}
-              y={markerY - 3}
-              fontSize={10}
-              fill="#212529"
-              stroke="white"
-              strokeWidth={3}
-              paintOrder="stroke"
-            >
-              {marker.label}
-            </text>
-            {/* Stryker restore all */}
-          </g>
-        );
-      })}
+          );
+        })}
     </g>
   );
 };
 
-// X-axis label: the section name, plus the class name under its middle bar.
+// X-axis label, drawn diagonally so long labels don't overlap.
 export const EnrollmentBarTick = ({ x, y, payload, rows }) => {
   const row = rows.find((r) => r.key === payload.value);
   return (
-    <g transform={`translate(${x},${y})`}>
-      {/* Stryker disable all: label styling */}
-      <text dy={12} textAnchor="middle" fontSize={11} fill="#495057">
-        {row.label}
-      </text>
-      {row.groupLabel && (
-        <text dy={30} textAnchor="middle" fontSize={12} fontWeight="bold">
-          {row.groupLabel}
-        </text>
-      )}
-      {/* Stryker restore all */}
-    </g>
+    // Stryker disable all: label styling
+    <text
+      x={x}
+      y={y}
+      dy={10}
+      transform={`rotate(-40, ${x}, ${y})`}
+      textAnchor="end"
+      fontSize={11}
+      fill="#495057"
+    >
+      {row.label}
+    </text>
+    // Stryker restore all
   );
 };
 
@@ -73,10 +70,12 @@ const EnrollmentHistoryBarGraph = ({
   data,
   yyyyq,
   passDates = {},
+  instructors = {},
   title = "Enrollment History",
 }) => {
   const rows = createEnrollmentBarRows(
     createEnrollmentBarChartData(data, yyyyq, passDates),
+    instructors,
   );
 
   return (
@@ -86,20 +85,23 @@ const EnrollmentHistoryBarGraph = ({
         <p>No enrollment data for this quarter.</p>
       ) : (
         <>
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={420}>
             <BarChart
               data={rows}
               // Stryker disable all
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              margin={{ top: 10, right: 30, left: 20, bottom: 5 }}
               barCategoryGap="10%"
             >
               <XAxis
                 dataKey="key"
                 interval={0}
-                height={45}
+                height={110}
                 tick={<EnrollmentBarTick rows={rows} />}
               />
-              <YAxis allowDecimals={false} />
+              <YAxis
+                allowDecimals={false}
+                domain={[0, getMaxEnrollment(rows)]}
+              />
               <Bar
                 dataKey="enrollment"
                 shape={<PassMarkerBar />}
@@ -109,9 +111,10 @@ const EnrollmentHistoryBarGraph = ({
             </BarChart>
           </ResponsiveContainer>
           <p className="small text-muted">
-            Blue bars are each class&apos;s total enrollment. Lines show
-            enrollment at the end of Pass 1 (P1) and Pass 2 (P2); the top of
-            each bar is the final enrollment.
+            Blue bars are each lecture&apos;s total enrollment, labelled with
+            the instructor; other colors are its sections. The dashed line is
+            enrollment at the end of Pass 1 and the solid line at the end of
+            Pass 2. A line above a bar means students dropped after that pass.
           </p>
         </>
       )}

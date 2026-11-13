@@ -163,6 +163,24 @@ describe("CourseDetailsIndexPage tests", () => {
       })
       .reply(() => [200, enrollmentHistoryResponse]);
     axiosMock.onGet("/api/public/allQuarters").reply(200, allQuartersResponse);
+    axiosMock
+      .onGet("/api/public/courseovertime/search", {
+        params: {
+          startQtr: "20221",
+          endQtr: "20221",
+          subjectArea: "CHEM",
+          courseNumber: "184",
+        },
+      })
+      .reply(200, [
+        {
+          courseId: "CHEM    184  ",
+          primary: {
+            section: "0100",
+            instructors: [{ instructor: "PROFESSOR X" }],
+          },
+        },
+      ]);
   });
 
   afterEach(() => {
@@ -236,6 +254,7 @@ describe("CourseDetailsIndexPage tests", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("enrollment-bar-0100-total")).toBeInTheDocument();
     expect(screen.getByText("Enrollment History – W22")).toBeInTheDocument();
+    expect(await screen.findByText("PROFESSOR X")).toBeInTheDocument();
   });
 
   test("leaves out other courses that share the course number prefix", async () => {
@@ -278,7 +297,9 @@ describe("CourseDetailsIndexPage tests", () => {
     expect(
       screen.queryByTestId("enrollment-bar-0100-0101"),
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId("pass-marker-0100-total-P1")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("pass-marker-0100-total-pass1"),
+    ).toBeInTheDocument();
   });
 
   test("offers the page's quarter even when it has no enrollment data", async () => {

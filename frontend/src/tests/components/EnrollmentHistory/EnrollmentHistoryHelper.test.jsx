@@ -5,7 +5,8 @@ import {
   getEnrollmentBefore,
   getEnrollmentQuarters,
   getLectureSection,
-  getPassMarkers,
+  getLectureInstructors,
+  getMaxEnrollment,
   getSectionBarColor,
   isLectureSection,
   isSameCourse,
@@ -149,6 +150,7 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
       { lectureSection: "0300", discussions: [bar("0301")], total: null },
     ];
     const rows = createEnrollmentBarRows(classes);
+    const named = createEnrollmentBarRows(classes, { "0100": "CONRAD P T" });
 
     test("lays out discussions, Total, and a gap between classes", () => {
       expect(rows.map((r) => r.key)).toEqual([
@@ -161,27 +163,20 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
         "0300-0301",
       ]);
       expect(rows.map((r) => r.label)).toEqual([
-        "0101",
-        "0102",
-        "Total",
+        "Section 1",
+        "Section 2",
+        "Lecture 0100",
         "",
-        "Total",
+        "Lecture 0200",
         "",
-        "0301",
+        "Section 1",
       ]);
       expect(rows[3].isSpacer).toBe(true);
     });
 
-    test("puts the class name under each class's middle bar", () => {
-      expect(rows.map((r) => r.groupLabel)).toEqual([
-        undefined,
-        "Lecture 0100",
-        undefined,
-        undefined,
-        "Lecture 0200",
-        undefined,
-        "Lecture 0300",
-      ]);
+    test("labels the Total bar with the lecture's instructor", () => {
+      expect(named[2].label).toBe("CONRAD P T");
+      expect(named[4].label).toBe("Lecture 0200");
     });
 
     test("colors discussions by position and Total in blue", () => {
@@ -197,14 +192,8 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
     });
 
     test("keeps each bar's counts and class", () => {
-      expect(rows[0]).toMatchObject({
-        ...bar("0101"),
-        isTotal: false,
-      });
-      expect(rows[2]).toMatchObject({
-        ...bar("0100"),
-        isTotal: true,
-      });
+      expect(rows[0]).toMatchObject(bar("0101"));
+      expect(rows[2]).toMatchObject(bar("0100"));
     });
 
     test("returns no rows for no classes", () => {
@@ -212,15 +201,36 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
     });
   });
 
-  test("getPassMarkers returns known pass 1 and pass 2 values", () => {
-    expect(getPassMarkers({ enrollment: 10, pass1: 3, pass2: 7 })).toEqual([
-      { label: "P1", value: 3 },
-      { label: "P2", value: 7 },
-    ]);
-    expect(getPassMarkers({ enrollment: 10, pass1: null, pass2: 7 })).toEqual([
-      { label: "P2", value: 7 },
-    ]);
-    expect(getPassMarkers({ enrollment: 0, pass1: 0, pass2: 0 })).toEqual([]);
+  test("getMaxEnrollment covers bars and pass lines, ignoring gaps", () => {
+    expect(
+      getMaxEnrollment([
+        { enrollment: 10, pass1: 12, pass2: null },
+        { isSpacer: true },
+        { enrollment: 11, pass1: 3, pass2: 9 },
+      ]),
+    ).toBe(12);
+    expect(getMaxEnrollment()).toBe(0);
+  });
+
+  test("getLectureInstructors maps lecture sections to instructors", () => {
+    const primary = (courseId, section, names) => ({
+      courseId,
+      primary: {
+        section,
+        instructors: names.map((instructor) => ({ instructor })),
+      },
+    });
+    expect(
+      getLectureInstructors(
+        [
+          primary("CMPSC   130A ", "0100", ["CONRAD P T", "WANG R K"]),
+          primary("CMPSC   130A ", "0200", ["SINGH A"]),
+          primary("CMPSC   130AH", "0100", ["OTHER X"]),
+        ],
+        "CMPSC   130A",
+      ),
+    ).toEqual({ "0100": "CONRAD P T, WANG R K", "0200": "SINGH A" });
+    expect(getLectureInstructors()).toEqual({});
   });
 
   test("isSameCourse ignores the -1 suffix but not a different course", () => {

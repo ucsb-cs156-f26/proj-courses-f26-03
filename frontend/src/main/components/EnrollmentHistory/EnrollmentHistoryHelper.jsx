@@ -147,46 +147,58 @@ export const getSectionBarColor = (index) =>
   sectionBarColors[index % sectionBarColors.length];
 
 // Flattens classes into the left-to-right list of bars Recharts draws, with
-// an empty gap bar between classes and the class name on its middle bar.
-export const createEnrollmentBarRows = (classes = []) => {
+// an empty gap bar between classes. Discussions are labelled "Section 1",
+// "Section 2", ...; the Total bar is labelled with the lecture's instructor.
+export const createEnrollmentBarRows = (classes = [], instructors = {}) => {
   const rows = [];
   classes.forEach((classData, classIndex) => {
     const { lectureSection } = classData;
     if (classIndex > 0) {
       rows.push({ key: `gap-${lectureSection}`, label: "", isSpacer: true });
     }
-    const classRows = classData.discussions.map((bar, index) => ({
-      ...bar,
-      key: `${lectureSection}-${bar.section}`,
-      label: bar.section,
-      color: getSectionBarColor(index),
-      isTotal: false,
-    }));
+    classData.discussions.forEach((bar, index) =>
+      rows.push({
+        ...bar,
+        key: `${lectureSection}-${bar.section}`,
+        label: `Section ${index + 1}`,
+        color: getSectionBarColor(index),
+      }),
+    );
     if (classData.total) {
-      classRows.push({
+      rows.push({
         ...classData.total,
         key: `${lectureSection}-total`,
-        label: "Total",
+        label: instructors[lectureSection] || `Lecture ${lectureSection}`,
         color: TOTAL_BAR_COLOR,
-        isTotal: true,
       });
     }
-    classRows[Math.floor((classRows.length - 1) / 2)].groupLabel =
-      `Lecture ${lectureSection}`;
-    rows.push(...classRows);
   });
   return rows;
 };
 
-// Returns the pass 1 and pass 2 lines to draw on a bar, skipping unknowns.
-export const getPassMarkers = (row) =>
-  [
-    { label: "P1", value: row.pass1 },
-    { label: "P2", value: row.pass2 },
-  ].filter((marker) => marker.value !== null && row.enrollment > 0);
+// Maps each lecture section (e.g. "0100") to its instructor names, from the
+// course-over-time search results for this course.
+export const getLectureInstructors = (primaries = [], courseId = "") =>
+  Object.fromEntries(
+    primaries
+      .filter((p) => isSameCourse(p.courseId, courseId))
+      .map((p) => [
+        p.primary.section,
+        p.primary.instructors.map((i) => i.instructor).join(", "),
+      ]),
+  );
 
-// True if an enrollment courseId (e.g. "CMPSC   130A -1") is this course,
-// since the enrollment search also returns courses sharing the prefix.
+// Highest value any bar or pass line reaches, so the y-axis fits them all.
+export const getMaxEnrollment = (rows = []) =>
+  Math.max(
+    0,
+    ...rows
+      .flatMap((row) => [row.enrollment, row.pass1, row.pass2])
+      .filter((value) => value != null),
+  );
+
+// True if a courseId (e.g. "CMPSC   130A -1" or "CMPSC   130A ") is this
+// course, since searches also return courses sharing the prefix.
 export const isSameCourse = (dataPointCourseId, courseId) =>
   // Stryker disable next-line Regex : variants only differ on courseIds that don't occur
-  dataPointCourseId.replace(/\s*-\d+$/, "") === courseId.trim();
+  dataPointCourseId.replace(/\s*-\d+$/, "").trim() === courseId.trim();

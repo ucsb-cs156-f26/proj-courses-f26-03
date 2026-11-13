@@ -38,6 +38,7 @@ describe("EnrollmentHistoryBarGraph", () => {
         data={enrollmentBarChartFixtures.twoLecturesWithSections}
         yyyyq="20262"
         passDates={enrollmentPassDatesFixtures.spring2026}
+        instructors={{ "0100": "CONRAD P T" }}
         title="CMPSC 130A Enrollment"
       />,
     );
@@ -48,10 +49,13 @@ describe("EnrollmentHistoryBarGraph", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("enrollment-bar-0200-0203")).toBeInTheDocument();
     expect(screen.getByTestId("enrollment-bar-0200-total")).toBeInTheDocument();
-    expect(screen.getByText("Lecture 0100")).toBeInTheDocument();
+    expect(screen.getByText("CONRAD P T")).toBeInTheDocument();
     expect(screen.getByText("Lecture 0200")).toBeInTheDocument();
-    expect(screen.getByTestId("pass-marker-0100-total-P2")).toBeInTheDocument();
-    expect(screen.getByText(/Blue bars are each class/)).toBeInTheDocument();
+    expect(screen.getAllByText("Section 1").length).toBeGreaterThan(0);
+    expect(
+      screen.getByTestId("pass-marker-0100-total-pass2"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Blue bars are each lecture/)).toBeInTheDocument();
   });
 
   test("uses the default title and shows a message when there is no data", () => {
@@ -87,21 +91,43 @@ describe("PassMarkerBar", () => {
     expect(rect).toHaveAttribute("fill", sectionBarColors[0]);
 
     // 30 of 100 students is 30% up from the bottom: 220 - 60 = 160
-    const p1 = screen.getByTestId("pass-marker-0100-0101-P1");
-    const p1Line = p1.querySelector("line");
-    expect(p1Line).toHaveAttribute("x1", "10");
-    expect(p1Line).toHaveAttribute("x2", "50");
-    expect(p1Line).toHaveAttribute("y1", "160");
-    expect(p1Line).toHaveAttribute("y2", "160");
-    // Label sits just inside the bar, above the line
-    const p1Label = p1.querySelector("text");
-    expect(p1Label).toHaveTextContent("P1");
-    expect(p1Label).toHaveAttribute("x", "13");
-    expect(p1Label).toHaveAttribute("y", "157");
-    // 75 of 100: 220 - 150 = 70
+    const p1 = screen.getByTestId("pass-marker-0100-0101-pass1");
+    expect(p1).toHaveAttribute("x1", "10");
+    expect(p1).toHaveAttribute("x2", "50");
+    expect(p1).toHaveAttribute("y1", "160");
+    expect(p1).toHaveAttribute("y2", "160");
+    expect(p1).toHaveAttribute("stroke-dasharray", "4 3");
+    // 75 of 100: 220 - 150 = 70; a line above the bar is allowed
+    const p2 = screen.getByTestId("pass-marker-0100-0101-pass2");
+    expect(p2).toHaveAttribute("y1", "70");
+    expect(p2).not.toHaveAttribute("stroke-dasharray");
+  });
+
+  test("skips unknown passes and empty bars", () => {
+    renderInSvg(
+      <>
+        <PassMarkerBar
+          x={0}
+          y={0}
+          width={10}
+          height={100}
+          payload={{ ...row, pass1: null }}
+        />
+        <PassMarkerBar
+          x={0}
+          y={0}
+          width={10}
+          height={0}
+          payload={{ ...row, key: "empty", enrollment: 0 }}
+        />
+      </>,
+    );
+    expect(screen.queryByTestId("pass-marker-0100-0101-pass1")).toBeNull();
     expect(
-      screen.getByTestId("pass-marker-0100-0101-P2").querySelector("line"),
-    ).toHaveAttribute("y1", "70");
+      screen.getByTestId("pass-marker-0100-0101-pass2"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("pass-marker-empty-pass1")).toBeNull();
+    expect(screen.queryByTestId("pass-marker-empty-pass2")).toBeNull();
   });
 
   test("draws nothing for a gap", () => {
@@ -113,31 +139,18 @@ describe("PassMarkerBar", () => {
 });
 
 describe("EnrollmentBarTick", () => {
-  const rows = [
-    { key: "0100-0101", label: "0101" },
-    { key: "0100-total", label: "Total", groupLabel: "Lecture 0100" },
-  ];
-
-  test("shows the section label at the tick position", () => {
-    const { container } = renderInSvg(
+  test("shows the bar's label rotated at the tick position", () => {
+    renderInSvg(
       <EnrollmentBarTick
         x={5}
         y={6}
         payload={{ value: "0100-0101" }}
-        rows={rows}
+        rows={[{ key: "0100-0101", label: "Section 1" }]}
       />,
     );
-    expect(screen.getByText("0101").parentElement).toHaveAttribute(
-      "transform",
-      "translate(5,6)",
-    );
-    expect(container.querySelectorAll("text")).toHaveLength(1);
-  });
-
-  test("shows the class name under the middle bar", () => {
-    renderInSvg(
-      <EnrollmentBarTick payload={{ value: "0100-total" }} rows={rows} />,
-    );
-    expect(screen.getByText("Lecture 0100")).toBeInTheDocument();
+    const label = screen.getByText("Section 1");
+    expect(label).toHaveAttribute("x", "5");
+    expect(label).toHaveAttribute("y", "6");
+    expect(label).toHaveAttribute("transform", "rotate(-40, 5, 6)");
   });
 });

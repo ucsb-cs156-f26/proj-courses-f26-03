@@ -11,6 +11,7 @@ import FinalExamCard from "main/components/Finals/FinalExamCard";
 import EnrollmentHistoryBarGraph from "main/components/EnrollmentHistory/EnrollmentHistoryBarGraph";
 import {
   getEnrollmentQuarters,
+  getLectureInstructors,
   isSameCourse,
 } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
 import SingleQuarterDropdown from "main/components/Quarters/SingleQuarterDropdown";
@@ -113,6 +114,27 @@ export default function CourseDetailsIndexPage() {
   const enrollmentPassDates =
     allQuarters.find((quarter) => quarter.quarter === enrollmentQuarter) || {};
 
+  // Fetch the selected quarter's lectures to label bars with instructors
+  const { data: enrollmentPrimaries } = useBackend(
+    // Stryker disable all : hard to test for query caching
+    [
+      `/api/public/courseovertime/search?startQtr=${enrollmentQuarter}&endQtr=${enrollmentQuarter}&subjectArea=${subjectArea}&courseNumber=${trimmedCourseNumber}`,
+    ],
+    {
+      method: "GET",
+      url: "/api/public/courseovertime/search",
+      params: {
+        startQtr: enrollmentQuarter,
+        endQtr: enrollmentQuarter,
+        subjectArea,
+        courseNumber: trimmedCourseNumber,
+      },
+    },
+    [],
+    { enabled: Boolean(subjectArea && trimmedCourseNumber) },
+    // Stryker restore all
+  );
+
   // Quarters with data, plus the page's own quarter
   const enrollmentQuarterOptions = getEnrollmentQuarters([
     ...courseEnrollmentHistory,
@@ -136,17 +158,20 @@ export default function CourseDetailsIndexPage() {
         {moreDetails && <CourseDescriptionTable course={moreDetails} />}
         {moreDetails && (
           <div data-testid="enrollment-history-section">
-            <SingleQuarterDropdown
-              quarter={enrollmentQuarter}
-              quarters={enrollmentQuarterOptions}
-              setQuarter={setEnrollmentQuarter}
-              controlId="CourseDetails.EnrollmentQuarter"
-              label="Enrollment History Quarter"
-            />
+            <div style={{ maxWidth: "12rem" }}>
+              <SingleQuarterDropdown
+                quarter={enrollmentQuarter}
+                quarters={enrollmentQuarterOptions}
+                setQuarter={setEnrollmentQuarter}
+                controlId="CourseDetails.EnrollmentQuarter"
+                label="Enrollment History Quarter"
+              />
+            </div>
             <EnrollmentHistoryBarGraph
               data={courseEnrollmentHistory}
               yyyyq={enrollmentQuarter}
               passDates={enrollmentPassDates}
+              instructors={getLectureInstructors(enrollmentPrimaries, courseId)}
               title={`Enrollment History – ${yyyyqToQyy(enrollmentQuarter)}`}
             />
           </div>
