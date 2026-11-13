@@ -100,6 +100,7 @@ describe("CourseOverTimeDescriptionIndexPage tests", () => {
     );
 
     expect(screen.getByText("COMP ENGR SEMINAR")).toBeInTheDocument();
+    expect(screen.getByText("Session")).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent(missingWarning);
     expect(axiosMock.history.post[0].params).toEqual({
       startQtr: "20222",

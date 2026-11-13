@@ -762,6 +762,7 @@ describe("CourseOverTimeBuildingsIndexPage tests", () => {
 
     expect(screen.getByText("CourseId")).toBeInTheDocument();
     expect(screen.getByText("Title")).toBeInTheDocument();
+    expect(screen.getByText("Session")).toBeInTheDocument();
   });
 
   test("does not display ConvertedSectionTable when search returns empty results", async () => {

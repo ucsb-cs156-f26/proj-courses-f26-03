@@ -44,7 +44,7 @@ export default function CourseOverTimeDescriptionIndexPage() {
         <CourseOverTimeDescriptionSearchForm
           fetchJSON={fetchCourseOverTimeJSON}
         />
-        <ConvertedSectionTable sections={courseJSON} />
+        <ConvertedSectionTable sections={courseJSON} showSession />
       </div>
     </BasicLayout>
   );
