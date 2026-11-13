@@ -1,9 +1,9 @@
 package edu.ucsb.cs156.courses.jobs;
 
-import edu.ucsb.cs156.courses.collections.ConvertedSectionCollection;
 import edu.ucsb.cs156.courses.collections.UpdateCollection;
 import edu.ucsb.cs156.courses.repositories.EnrollmentDataPointRepository;
 import edu.ucsb.cs156.courses.repositories.UCSBSubjectRepository;
+import edu.ucsb.cs156.courses.services.CourseCacheService;
 import edu.ucsb.cs156.courses.services.IsStaleService;
 import edu.ucsb.cs156.courses.services.UCSBAPIQuarterService;
 import edu.ucsb.cs156.courses.services.UCSBCurriculumService;
@@ -20,7 +20,7 @@ public class UpdateCourseDataJobFactory {
 
   @Autowired private UCSBCurriculumService curriculumService;
 
-  @Autowired private ConvertedSectionCollection convertedSectionCollection;
+  @Autowired private CourseCacheService courseCacheService;
 
   @Autowired private UCSBSubjectRepository subjectRepository;
 
@@ -41,7 +41,7 @@ public class UpdateCourseDataJobFactory {
         quarterYYYYQ,
         List.of(subjectArea),
         curriculumService,
-        convertedSectionCollection,
+        courseCacheService,
         updateCollection,
         isStaleService,
         ifStale,
@@ -57,7 +57,7 @@ public class UpdateCourseDataJobFactory {
         end_quarterYYYYQ,
         List.of(subjectArea),
         curriculumService,
-        convertedSectionCollection,
+        courseCacheService,
         updateCollection,
         isStaleService,
         ifStale,
@@ -81,7 +81,7 @@ public class UpdateCourseDataJobFactory {
         quarterYYYYQ,
         getAllSubjectCodes(),
         curriculumService,
-        convertedSectionCollection,
+        courseCacheService,
         updateCollection,
         isStaleService,
         ifStale,
@@ -97,7 +97,7 @@ public class UpdateCourseDataJobFactory {
         end_quarterYYYYQ,
         getAllSubjectCodes(),
         curriculumService,
-        convertedSectionCollection,
+        courseCacheService,
         updateCollection,
         isStaleService,
         ifStale,

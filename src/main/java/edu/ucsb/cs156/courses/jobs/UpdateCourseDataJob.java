@@ -1,11 +1,11 @@
 package edu.ucsb.cs156.courses.jobs;
 
-import edu.ucsb.cs156.courses.collections.ConvertedSectionCollection;
 import edu.ucsb.cs156.courses.collections.UpdateCollection;
 import edu.ucsb.cs156.courses.documents.ConvertedSection;
 import edu.ucsb.cs156.courses.documents.Update;
 import edu.ucsb.cs156.courses.models.Quarter;
 import edu.ucsb.cs156.courses.repositories.EnrollmentDataPointRepository;
+import edu.ucsb.cs156.courses.services.CourseCacheService;
 import edu.ucsb.cs156.courses.services.IsStaleService;
 import edu.ucsb.cs156.courses.services.UCSBAPIQuarterService;
 import edu.ucsb.cs156.courses.services.UCSBCurriculumService;
@@ -13,7 +13,6 @@ import edu.ucsb.cs156.jobs.services.JobContext;
 import edu.ucsb.cs156.jobs.services.JobContextConsumer;
 import edu.ucsb.cs156.jobs.services.JobRateLimit;
 import java.util.List;
-import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -29,7 +28,7 @@ public class UpdateCourseDataJob implements JobContextConsumer {
   private String end_quarterYYYYQ;
   private List<String> subjects;
   private UCSBCurriculumService ucsbCurriculumService;
-  private ConvertedSectionCollection convertedSectionCollection;
+  private CourseCacheService courseCacheService;
   private UpdateCollection updateCollection;
   private IsStaleService isStaleService;
   private boolean ifStale;
@@ -85,32 +84,53 @@ public class UpdateCourseDataJob implements JobContextConsumer {
     int errors = 0;
     boolean isInRegistrationPass = ucsbapiQuarterService.isQuarterInRegistrationPass(quarterYYYYQ);
 
+    boolean cacheReady = false;
+    if (!convertedSections.isEmpty()) {
+      ctx.checkCancellation();
+      try {
+        courseCacheService.prepareIndex();
+        cacheReady = true;
+      } catch (Exception e) {
+        log.error(
+            "Unable to prepare course index for subject {} quarter {}",
+            subjectArea,
+            quarterYYYYQ,
+            e);
+      }
+    }
+
     for (ConvertedSection section : convertedSections) {
       // No branch of this loop ever calls ctx.log() -- all logging happens once, after the loop,
       // in the summary line below. Without its own checkpoint, this loop has zero opportunities
       // to notice a cancellation request no matter how many sections it processes.
       ctx.checkCancellation();
+      if (!cacheReady) {
+        errors++;
+        continue;
+      }
       try {
-        String quarter = section.getCourseInfo().getQuarter();
-        String enrollCode = section.getSection().getEnrollCode();
-        Optional<ConvertedSection> optionalSection =
-            convertedSectionCollection.findOneByQuarterAndEnrollCode(quarter, enrollCode);
-        if (optionalSection.isPresent()) {
-          ConvertedSection existingSection = optionalSection.get();
-          existingSection.setCourseInfo(section.getCourseInfo());
-          existingSection.setSection(section.getSection());
-          convertedSectionCollection.save(existingSection);
-          updatedSections++;
-        } else {
-          convertedSectionCollection.save(section);
+        if (courseCacheService.upsertSection(section)) {
           newSections++;
+        } else {
+          updatedSections++;
         }
         if (isInRegistrationPass) {
           enrollmentDataPointRepository.save(section.getEnrollmentDataPoint());
         }
       } catch (Exception e) {
         errors++;
+        log.error(
+            "Unable to store section for subject {} quarter {}", subjectArea, quarterYYYYQ, e);
       }
+    }
+
+    if (!cacheReady && !convertedSections.isEmpty()) {
+      ctx.log(
+          String.format(
+              "Skipped update for [%s %s]: course index preparation failed; %d errors; "
+                  + "freshness timestamp unchanged",
+              subjectArea, quarterYYYYQ, errors));
+      return;
     }
 
     Update savedUpdate =
