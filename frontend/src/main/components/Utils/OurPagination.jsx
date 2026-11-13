@@ -1,34 +1,28 @@
-import React, { useState } from "react";
+import React from "react";
 import { Pagination } from "react-bootstrap";
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const emptyArray = () => []; // factored out for Stryker testing
-
 const OurPagination = ({
+  currentActivePage,
   updateActivePage,
   totalPages = 10,
   testId = "OurPagination",
 }) => {
-  const [activePage, setActivePage] = useState(1);
   const nextPage = () => {
-    const newPage = Math.min(activePage + 1, totalPages);
-    setActivePage(newPage);
+    const newPage = Math.min(currentActivePage + 1, totalPages);
     updateActivePage(newPage);
   };
   const prevPage = () => {
-    const newPage = Math.max(activePage - 1, 1);
-    setActivePage(newPage);
+    const newPage = Math.max(currentActivePage - 1, 1);
     updateActivePage(newPage);
   };
   const thisPage = (page) => {
-    setActivePage(page);
     updateActivePage(page);
   };
 
   const pageButton = (number) => (
     <Pagination.Item
       key={number}
-      active={number === activePage}
+      active={number === currentActivePage}
       onClick={() => thisPage(number)}
       data-testid={`${testId}-${number}`}
     >
@@ -37,21 +31,17 @@ const OurPagination = ({
   );
 
   const generateSimplePaginationItems = () => {
-    const paginationItems = emptyArray();
-    for (let number = 1; number <= totalPages; number++) {
-      paginationItems.push(pageButton(number));
-    }
-    return paginationItems;
+    return Array.from({ length: totalPages }, (_, index) =>
+      pageButton(index + 1),
+    );
   };
 
   const generateComplexPaginationItems = () => {
-    const paginationItems = emptyArray();
-
     // Always show page 1 and totalPages
-    paginationItems.push(pageButton(1));
+    const paginationItems = [pageButton(1)];
 
-    // Case 1: activePage is near the beginning (1, 2, 3, 4)
-    if (activePage < 5) {
+    // Case 1: currentActivePage is near the beginning (1, 2, 3, 4)
+    if (currentActivePage < 5) {
       paginationItems.push(pageButton(2));
       paginationItems.push(pageButton(3));
       paginationItems.push(pageButton(4));
@@ -63,8 +53,8 @@ const OurPagination = ({
         />,
       );
     }
-    // Case 2: activePage is near the end (totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
-    else if (activePage > totalPages - 4) {
+    // Case 2: currentActivePage is near the end (totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
+    else if (currentActivePage > totalPages - 4) {
       paginationItems.push(
         <Pagination.Ellipsis
           key="left-ellipsis"
@@ -76,7 +66,7 @@ const OurPagination = ({
       paginationItems.push(pageButton(totalPages - 2));
       paginationItems.push(pageButton(totalPages - 1));
     }
-    // Case 3: activePage is in the middle
+    // Case 3: currentActivePage is in the middle
     else {
       paginationItems.push(
         <Pagination.Ellipsis
@@ -84,9 +74,9 @@ const OurPagination = ({
           data-testid={`${testId}-left-ellipsis`}
         />,
       );
-      paginationItems.push(pageButton(activePage - 1));
-      paginationItems.push(pageButton(activePage));
-      paginationItems.push(pageButton(activePage + 1));
+      paginationItems.push(pageButton(currentActivePage - 1));
+      paginationItems.push(pageButton(currentActivePage));
+      paginationItems.push(pageButton(currentActivePage + 1));
       paginationItems.push(
         <Pagination.Ellipsis
           key="right-ellipsis"

@@ -198,6 +198,7 @@ const AdminJobsPage = () => {
         updatePageSize={setPageSize}
       />
       <OurPagination
+        currentActivePage={selectedPage}
         updateActivePage={setSelectedPage}
         totalPages={page.totalPages}
       />
