@@ -5,6 +5,7 @@ import {
   formatInstructors,
   formatLocation,
   formatTime,
+  formatSession,
 } from "main/utils/sectionUtils.jsx";
 
 export default function CourseDetailsTable({ details }) {
@@ -22,6 +23,15 @@ export default function CourseDetailsTable({ details }) {
       header: "Section",
       id: "section",
       cell: ({ cell }) => cell.row.original.classSections[0].section,
+    },
+    {
+      header: "Session",
+      id: "session",
+      cell: ({ cell }) =>
+        formatSession(
+          cell.row.original.quarter,
+          cell.row.original.classSections[0]?.session,
+        ),
     },
     {
       header: "Title",

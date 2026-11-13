@@ -51,6 +51,7 @@ describe("CourseDetailsTable tests", () => {
       "Course ID",
       "Enroll Code",
       "Section",
+      "Session",
       "Title",
       "Enrolled",
       "Location",
@@ -62,6 +63,7 @@ describe("CourseDetailsTable tests", () => {
       "courseId",
       "enrollCode",
       "section",
+      "session",
       "title",
       "enrolled",
       "location",
@@ -118,5 +120,65 @@ describe("CourseDetailsTable tests", () => {
     expect(
       screen.getByTestId(`${testId}-cell-row-0-col-days`),
     ).toHaveTextContent("");
+  });
+
+  test("displays summer session A and B correctly", () => {
+    const base = personalSectionsFixtures.threePersonalSections[0];
+
+    const makeCourse = (session) => ({
+      ...base,
+      quarter: "20233",
+      classSections: [
+        {
+          ...base.classSections[0],
+          session,
+        },
+      ],
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseDetailsTable
+            details={[makeCourse("00000A"), makeCourse("00000B")]}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.getByTestId("CourseDetailsTable-cell-row-0-col-session"),
+    ).toHaveTextContent("A");
+
+    expect(
+      screen.getByTestId("CourseDetailsTable-cell-row-1-col-session"),
+    ).toHaveTextContent("B");
+  });
+
+  test("displays blank session for non-summer courses", () => {
+    const base = personalSectionsFixtures.threePersonalSections[0];
+
+    const course = {
+      ...base,
+      quarter: "20234",
+      classSections: [
+        {
+          ...base.classSections[0],
+          session: "00000A",
+        },
+      ],
+    };
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseDetailsTable details={[course]} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.getByTestId("CourseDetailsTable-cell-row-0-col-session"),
+    ).toHaveTextContent(/^$/);
   });
 });
