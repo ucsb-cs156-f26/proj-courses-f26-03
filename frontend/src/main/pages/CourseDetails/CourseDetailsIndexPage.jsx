@@ -8,7 +8,7 @@ import { yyyyqToQyy } from "main/utils/quarterUtilities";
 import CourseDescriptionTable from "main/components/Courses/CourseDescriptionTable";
 import GradeHistoryGraphs from "main/components/GradeHistory/GradeHistoryGraph";
 import FinalExamCard from "main/components/Finals/FinalExamCard";
-import EnrollmentHistoryBarGraph from "main/components/EnrollmentHistory/EnrollmentHistoryBarGraph";
+import EnrollmentHistoryGraph from "main/components/EnrollmentHistory/EnrollmentHistoryGraph";
 import {
   getEnrollmentQuarters,
   getLectureInstructors,
@@ -167,7 +167,7 @@ export default function CourseDetailsIndexPage() {
                 label="Enrollment History Quarter"
               />
             </div>
-            <EnrollmentHistoryBarGraph
+            <EnrollmentHistoryGraph
               data={courseEnrollmentHistory}
               yyyyq={enrollmentQuarter}
               passDates={enrollmentPassDates}

@@ -1,7 +1,10 @@
 import React from "react";
 
 import EnrollmentHistoryGraph from "main/components/EnrollmentHistory/EnrollmentHistoryGraph";
-import { enrollmentDataPointFixtures } from "fixtures/enrollmentDataPointFixtures";
+import {
+  enrollmentBarChartFixtures,
+  enrollmentPassDatesFixtures,
+} from "fixtures/enrollmentDataPointFixtures";
 
 export default {
   title: "components/EnrollmentHistory/EnrollmentHistoryGraph",
@@ -12,20 +15,34 @@ const Template = (args) => {
   return <EnrollmentHistoryGraph {...args} />;
 };
 
-export const OneLectureOverTime = Template.bind({});
-OneLectureOverTime.args = {
-  data: enrollmentDataPointFixtures.cmpsc130aLectureOverTime,
-  title: "CMPSC 130A Lecture Enrollment Over Time",
+export const TwoLecturesWithSections = Template.bind({});
+TwoLecturesWithSections.args = {
+  data: enrollmentBarChartFixtures.twoLecturesWithSections,
+  yyyyq: "20262",
+  passDates: enrollmentPassDatesFixtures.spring2026,
+  title: "CMPSC 130A Enrollment – S26",
 };
 
-export const MultipleSectionsOverTime = Template.bind({});
-MultipleSectionsOverTime.args = {
-  data: enrollmentDataPointFixtures.cmpsc130aMultipleSectionsOverTime,
-  title: "CMPSC 130A Section Enrollment Over Time",
+export const ManyLecturesNoSections = Template.bind({});
+ManyLecturesNoSections.args = {
+  data: enrollmentBarChartFixtures.manyLecturesNoSections,
+  yyyyq: "20262",
+  passDates: enrollmentPassDatesFixtures.spring2026,
+  title: "Eight Lectures, No Discussion Sections",
 };
 
-export const MultipleQuarters = Template.bind({});
-MultipleQuarters.args = {
-  data: enrollmentDataPointFixtures.cmpsc130aMultipleQuarters,
-  title: "CMPSC 130A Enrollment Across Quarters",
+export const SingleLecture = Template.bind({});
+SingleLecture.args = {
+  data: enrollmentBarChartFixtures.singleLecture,
+  yyyyq: "20262",
+  passDates: enrollmentPassDatesFixtures.spring2026,
+  title: "Single Lecture",
+};
+
+export const MissingData = Template.bind({});
+MissingData.args = {
+  data: enrollmentBarChartFixtures.missingData,
+  yyyyq: "20262",
+  passDates: enrollmentPassDatesFixtures.spring2026,
+  title: "Missing Lecture Data",
 };

@@ -328,9 +328,7 @@ describe("CourseDetailsIndexPage tests", () => {
       "grade-history-graphs",
     );
 
-    expect(
-      screen.getByTestId("enrollment-history-bar-graph"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("enrollment-history-graph")).toBeInTheDocument();
     expect(
       courseDescription.compareDocumentPosition(enrollmentHistorySection) &
         Node.DOCUMENT_POSITION_FOLLOWING,
