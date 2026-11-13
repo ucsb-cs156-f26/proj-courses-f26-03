@@ -1,0 +1,67 @@
+import { useState } from "react";
+import EnrollmentHistoryDisplay from "main/components/EnrollmentHistory/EnrollmentHistoryDisplay";
+import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
+import CourseOverTimeSearchForm from "main/components/BasicCourseSearch/CourseOverTimeSearchForm";
+import { useBackendMutation } from "main/utils/useBackend";
+import EnrollmentHistorySectionsTable from "main/components/EnrollmentHistory/EnrollmentHistorySectionsTable";
+
+export default function EnrollmentHistoryPage() {
+  // Stryker disable next-line all : Can't test state because hook is internal
+  const [courseJSON, setCourseJSON] = useState([]);
+  // Stryker disable next-line all : Can't test state because hook is internal
+  const [hasSearched, setHasSearched] = useState(false);
+  // Stryker disable next-line all : Can't test state because hook is internal
+  const [selection, setSelection] = useState(null);
+
+  const objectToAxiosParams = (query) => ({
+    url: "/api/public/courseovertime/search",
+    params: {
+      startQtr: query.startQuarter,
+      endQtr: query.endQuarter,
+      subjectArea: query.subject,
+      courseNumber: query.courseNumber + query.courseSuf,
+    },
+  });
+
+  const onSuccess = (courses) => {
+    setCourseJSON(courses);
+    setHasSearched(true);
+    setSelection(null);
+  };
+
+  const mutation = useBackendMutation(
+    objectToAxiosParams,
+    { onSuccess },
+    // Stryker disable next-line all : hard to set up test for caching
+    [],
+  );
+
+  async function fetchCourseOverTimeJSON(_event, query) {
+    mutation.mutate(query);
+  }
+
+  return (
+    <BasicLayout>
+      <div className="pt-2">
+        <h5>Enrollment History</h5>
+        <CourseOverTimeSearchForm fetchJSON={fetchCourseOverTimeJSON} />
+        {mutation.isLoading && (
+          <div className="text-center">Loading courses...</div>
+        )}
+        {!mutation.isLoading && hasSearched && courseJSON.length === 0 && (
+          <div className="text-center mt-3">
+            <p>No courses were found with the specified criteria.</p>
+          </div>
+        )}
+        {!mutation.isLoading && courseJSON.length > 0 && (
+          <EnrollmentHistorySectionsTable
+            sections={courseJSON}
+            showSession
+            onShowEnrollmentHistory={setSelection}
+          />
+        )}
+        {selection && <EnrollmentHistoryDisplay selection={selection} />}
+      </div>
+    </BasicLayout>
+  );
+}
