@@ -12,9 +12,10 @@ import {
   getSection,
   getSectionField,
   renderInfoLink,
-  renderDetailPageLink,
+  formatInfoLink,
   getQuarter,
 } from "main/utils/sectionUtils.jsx";
+import { stripLectureSuffix } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
 import { yyyyqToQyy } from "main/utils/quarterUtilities";
 
 export default function EnrollmentHistorySectionsTable({
@@ -64,9 +65,18 @@ export default function EnrollmentHistorySectionsTable({
     {
       accessorKey: "courseId",
       header: "Course ID",
-      cell: ({ row }) => {
-        return renderDetailPageLink(row, testid);
-      },
+      cell: ({ row }) => (
+        <p className="text-center">
+          <a
+            href={formatInfoLink(row)}
+            data-testid={`${testid}-row-${row.id}-col-detail-link`}
+            target={"_blank"}
+            rel="noopener noreferrer"
+          >
+            {stripLectureSuffix(row.original.courseId)}
+          </a>
+        </p>
+      ),
     },
     {
       accessorKey: "title",

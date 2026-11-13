@@ -1,10 +1,12 @@
 import { useBackend } from "main/utils/useBackend";
 import EnrollmentHistoryGraph from "main/components/EnrollmentHistory/EnrollmentHistoryGraph";
+import { stripLectureSuffix } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
 
 const selectedEnrollmentLineColors = ["#0d6efd"];
 
 export default function EnrollmentHistoryDisplay({ selection }) {
-  const { quarter, courseId, enrollCode } = selection;
+  const { quarter, enrollCode } = selection;
+  const courseId = stripLectureSuffix(selection.courseId);
 
   // Splitting on two spaces allows for courses with multiple word subject areas (i.e. AS AM) to be recognized
   const splitArray = courseId.split("  ");

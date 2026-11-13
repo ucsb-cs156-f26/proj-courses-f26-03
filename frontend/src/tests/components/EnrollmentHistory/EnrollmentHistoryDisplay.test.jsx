@@ -90,6 +90,30 @@ describe("EnrollmentHistoryDisplay tests", () => {
     });
   });
 
+  test("strips the lecture suffix from the course number", async () => {
+    axiosMock.onGet("/api/enrollment/search").reply(200, []);
+    renderDisplay({ ...selection, courseId: "CMPSC   130A -1" });
+    await waitFor(() => expect(axiosMock.history.get.length).toBe(1));
+    expect(axiosMock.history.get[0].params.courseNumber).toBe("130A");
+  });
+
+  test("hides the lecture suffix in the graph title", async () => {
+    axiosMock.onGet("/api/enrollment/search").reply(200, [dataPoint]);
+    renderDisplay({ ...selection, courseId: "CMPSC   130A -1" });
+    await waitFor(() =>
+      expect(screen.getByRole("heading").textContent).toBe(
+        "Enrollment History for CMPSC   130A (07609)",
+      ),
+    );
+  });
+
+  test("strips the lecture suffix even when followed by whitespace", async () => {
+    axiosMock.onGet("/api/enrollment/search").reply(200, []);
+    renderDisplay({ ...selection, courseId: "CMPSC   130A -1 " });
+    await waitFor(() => expect(axiosMock.history.get.length).toBe(1));
+    expect(axiosMock.history.get[0].params.courseNumber).toBe("130A");
+  });
+
   test("parses multi-word subject areas", async () => {
     axiosMock.onGet("/api/enrollment/search").reply(200, []);
     renderDisplay({ ...selection, courseId: "AS AM   10 " });

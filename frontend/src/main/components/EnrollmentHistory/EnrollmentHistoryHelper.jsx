@@ -9,6 +9,10 @@ export const lineColors = [
 ];
 // Stryker restore all
 
+// Course-over-time results append a lecture suffix (i.e. "CMPSC   130A -1")
+export const stripLectureSuffix = (courseId) =>
+  courseId?.replace(/\s*-\d+\s*$/, "");
+
 export const getEnrollmentSeriesKey = (dataPoint) =>
   `${dataPoint.enrollCd}-${dataPoint.section}`;
 

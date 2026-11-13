@@ -58,6 +58,14 @@ describe("EnrollmentHistorySectionsTable tests", () => {
     ).toHaveAttribute("href", "/coursedetails/20244/30247");
   });
 
+  test("hides the lecture suffix from the course id", () => {
+    const sections = [
+      { ...primaryFixtures.f24_math_lowerDiv[0], courseId: "MATH      2A -1" },
+    ];
+    renderTable({ sections });
+    expect(cell(0, "courseId")).toHaveTextContent(/^MATH 2A$/);
+  });
+
   test("renders section rows with an empty quarter cell when expanded", async () => {
     renderTable();
     await userEvent.click(screen.getByTestId(`${testid}-expand-all-rows`));
