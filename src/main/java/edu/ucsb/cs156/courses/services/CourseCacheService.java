@@ -27,7 +27,7 @@ public class CourseCacheService {
   public void prepareIndex() {
     mongoTemplate
         .indexOps(ConvertedSection.class)
-        .ensureIndex(
+        .createIndex(
             new Index()
                 .on("courseInfo.quarter", Direction.ASC)
                 .on("section.enrollCode", Direction.ASC)

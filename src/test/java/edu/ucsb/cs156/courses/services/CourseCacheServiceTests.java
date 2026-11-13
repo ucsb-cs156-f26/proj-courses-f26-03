@@ -42,7 +42,7 @@ class CourseCacheServiceTests {
     var index =
         org.mockito.ArgumentCaptor.forClass(
             org.springframework.data.mongodb.core.index.IndexDefinition.class);
-    verify(indexes, times(1)).ensureIndex(index.capture());
+    verify(indexes, times(1)).createIndex(index.capture());
     assertEquals(
         new org.bson.Document("courseInfo.quarter", 1).append("section.enrollCode", 1),
         index.getValue().getIndexKeys());
@@ -85,7 +85,7 @@ class CourseCacheServiceTests {
 
   @Test
   void failedPreparationCanBeRetriedWithoutWritingCourses() {
-    when(indexes.ensureIndex(any()))
+    when(indexes.createIndex(any()))
         .thenThrow(new DuplicateKeyException("existing duplicate key"))
         .thenReturn("quarter_enrollCode_unique");
     assertThrows(DuplicateKeyException.class, () -> cache.prepareIndex());
@@ -94,7 +94,7 @@ class CourseCacheServiceTests {
         .thenReturn(UpdateResult.acknowledged(1, 0L, null));
     cache.prepareIndex();
     assertFalse(cache.upsertSection(section));
-    verify(indexes, times(2)).ensureIndex(any());
+    verify(indexes, times(2)).createIndex(any());
   }
 
   @Test
