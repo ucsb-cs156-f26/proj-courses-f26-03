@@ -39,6 +39,7 @@ describe("CSVDownloadsPage tests", () => {
     localStorage.setItem("CSVDownloads.Subject", "ANTH");
     localStorage.setItem("CSVDownloads.Level", "U");
     axiosMock.reset();
+    axiosMock.onPost("/api/public/course-data/ensure").reply(200, []);
     axiosMock
       .onGet("/api/currentUser")
       .reply(200, apiCurrentUserFixtures.userOnly);
@@ -73,6 +74,55 @@ describe("CSVDownloadsPage tests", () => {
       browserLocation: { assign: assignMock },
     };
   };
+
+  test.each([0, 1])(
+    "download form %i waits for availability before navigating",
+    async (formIndex) => {
+      let finishAvailability;
+      axiosMock.onPost("/api/public/course-data/ensure").reply(
+        () =>
+          new Promise((resolve) => {
+            finishAvailability = resolve;
+          }),
+      );
+      const { assignMock, browserLocation } = mockLocationAssign();
+      renderPage(browserLocation);
+      const buttons = await screen.findAllByRole("button", {
+        name: "Download CSV",
+      });
+      fireEvent.submit(buttons[formIndex].closest("form"));
+      await waitFor(() => expect(finishAvailability).toBeTypeOf("function"));
+      expect(assignMock).not.toHaveBeenCalled();
+      await waitFor(() =>
+        buttons.forEach((button) => expect(button).toBeDisabled()),
+      );
+      finishAvailability([200, []]);
+      await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        buttons.forEach((button) => expect(button).toBeEnabled()),
+      );
+    },
+  );
+
+  test.each([0, 1])(
+    "download form %i still downloads existing data on scheduling failure",
+    async (formIndex) => {
+      axiosMock.onPost("/api/public/course-data/ensure").networkError();
+      const { assignMock, browserLocation } = mockLocationAssign();
+      renderPage(browserLocation);
+      const buttons = await screen.findAllByRole("button", {
+        name: "Download CSV",
+      });
+      fireEvent.submit(buttons[formIndex].closest("form"));
+      await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Could not check course data availability or schedule an update",
+      );
+      expect(
+        screen.queryByText(/scheduled or already running/),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   test("renders correctly", async () => {
     renderPage();
@@ -122,6 +172,9 @@ describe("CSVDownloadsPage tests", () => {
   });
 
   test("submitting by-quarter form downloads selected quarter", async () => {
+    const warning =
+      "Course data for CMPSC in quarter 20242 has not been loaded. A background update is scheduled or already running. Please check back in 5 minutes.";
+    axiosMock.onPost("/api/public/course-data/ensure").reply(200, [warning]);
     const { assignMock, browserLocation } = mockLocationAssign();
     renderPage(browserLocation);
 
@@ -134,13 +187,22 @@ describe("CSVDownloadsPage tests", () => {
     fireEvent.change(quarterDropdown, { target: { value: "20242" } });
     fireEvent.submit(byQuarterForm);
 
-    expect(assignMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
     expect(assignMock).toHaveBeenCalledWith(
       "/api/courses/csv/quarter?yyyyq=20242",
     );
+    expect(await screen.findByRole("alert")).toHaveTextContent(warning);
+    expect(axiosMock.history.post[0].params).toEqual({
+      startQtr: "20242",
+      endQtr: "20242",
+      subjectArea: undefined,
+    });
   });
 
   test("submitting by-quarter-and-subject form includes all endpoint parameters", async () => {
+    const warning =
+      "Course data for CMPSC in quarter 20242 has not been loaded. A background update is scheduled or already running. Please check back in 5 minutes.";
+    axiosMock.onPost("/api/public/course-data/ensure").reply(200, [warning]);
     const { assignMock, browserLocation } = mockLocationAssign();
     renderPage(browserLocation);
 
@@ -177,10 +239,16 @@ describe("CSVDownloadsPage tests", () => {
     fireEvent.click(withTimeLocationsCheckbox);
     fireEvent.submit(byQuarterAndSubjectForm);
 
-    expect(assignMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
     expect(assignMock).toHaveBeenCalledWith(
       "/api/courses/csv/byQuarterAndSubjectArea?yyyyq=20242&subjectArea=CMPSC&level=G&omitSections=false&withTimeLocations=false",
     );
+    expect(await screen.findByRole("alert")).toHaveTextContent(warning);
+    expect(axiosMock.history.post[0].params).toEqual({
+      startQtr: "20242",
+      endQtr: "20242",
+      subjectArea: "CMPSC",
+    });
   });
 
   test("submitting by-quarter-and-subject form includes default parameters", async () => {
@@ -198,7 +266,7 @@ describe("CSVDownloadsPage tests", () => {
     })[1];
     fireEvent.submit(byQuarterAndSubjectButton.closest("form"));
 
-    expect(assignMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
     expect(assignMock).toHaveBeenCalledWith(
       "/api/courses/csv/byQuarterAndSubjectArea?yyyyq=20221&subjectArea=ANTH&level=U&omitSections=true&withTimeLocations=true",
     );

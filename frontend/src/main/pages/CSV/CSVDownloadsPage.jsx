@@ -5,6 +5,8 @@ import SingleQuarterDropdown from "main/components/Quarters/SingleQuarterDropdow
 import SingleSubjectDropdown from "main/components/Subjects/SingleSubjectDropdown";
 import SingleLevelDropdown from "main/components/Levels/SingleLevelDropdown";
 import { useBackend } from "main/utils/useBackend";
+import { useCourseDataAvailability } from "main/utils/useCourseSearchMutation";
+import CourseDataWarnings from "main/components/Common/CourseDataWarnings";
 import { useSystemInfo } from "main/utils/systemInfo";
 import { quarterRange } from "main/utils/quarterUtilities";
 
@@ -20,6 +22,7 @@ export default function CSVDownloadsPage({
   browserLocation = window.location,
 }) {
   const { data: systemInfo } = useSystemInfo();
+  const availability = useCourseDataAvailability();
 
   // Stryker disable OptionalChaining
   const startQtr = systemInfo?.startQtrYYYYQ || "20211";
@@ -59,20 +62,36 @@ export default function CSVDownloadsPage({
     browserLocation.assign(url);
   };
 
+  const ensureThenDownload = async (query, url) => {
+    try {
+      await availability.mutateAsync(query);
+    } catch {
+      // The availability alert reports failure; existing CSV data can still be downloaded.
+    }
+    downloadCsv(url);
+  };
+
   const handleQuarterSubmit = (e) => {
     e.preventDefault();
-    downloadCsv(byQuarterUrl);
+    return ensureThenDownload(
+      { startQtr: quarter, endQtr: quarter },
+      byQuarterUrl,
+    );
   };
 
   const handleQuarterSubjectSubmit = (e) => {
     e.preventDefault();
-    downloadCsv(byQuarterAndSubjectUrl);
+    return ensureThenDownload(
+      { startQtr: quarter, endQtr: quarter, subjectArea },
+      byQuarterAndSubjectUrl,
+    );
   };
 
   return (
     <BasicLayout>
       <div className="container mt-3">
         <h1>CSV Downloads</h1>
+        <CourseDataWarnings availability={availability} />
 
         <Accordion defaultActiveKey="by-quarter" className="mt-3">
           {/* Download by Quarter */}
@@ -91,7 +110,11 @@ export default function CSVDownloadsPage({
                   />
                 </div>
 
-                <Button type="submit" variant="primary">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={availability.isLoading}
+                >
                   Download CSV
                 </Button>
               </Form>
@@ -156,7 +179,11 @@ export default function CSVDownloadsPage({
                   />
                 </Form.Group>
 
-                <Button type="submit" variant="primary">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={availability.isLoading}
+                >
                   Download CSV
                 </Button>
               </Form>

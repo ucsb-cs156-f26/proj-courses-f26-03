@@ -410,6 +410,47 @@ public class UpdateCourseDataJobTests {
   }
 
   @Test
+  void missingEnrollmentIsSavedAsUnknownWithoutErrorsAndZeroIsPreserved() throws Exception {
+    List<ConvertedSection> sections =
+        CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B)
+            .convertedSections()
+            .subList(0, 3);
+    sections.get(0).getSection().setEnrolledTotal(null);
+    sections.get(1).getSection().setEnrolledTotal(0);
+    sections.get(2).getSection().setEnrolledTotal(23);
+    when(ucsbCurriculumService.getConvertedSections("MATH", "20222", "A")).thenReturn(sections);
+    when(ucsbapiQuarterService.isQuarterInRegistrationPass("20222")).thenReturn(true);
+    when(courseCacheService.upsertSection(sections.get(0))).thenReturn(true);
+    when(courseCacheService.upsertSection(sections.get(1))).thenReturn(false);
+    when(courseCacheService.upsertSection(sections.get(2))).thenReturn(true);
+    when(updateCollection.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    var job =
+        UpdateCourseDataJob.builder()
+            .ucsbCurriculumService(ucsbCurriculumService)
+            .courseCacheService(courseCacheService)
+            .updateCollection(updateCollection)
+            .enrollmentDataPointRepository(enrollmentDataPointRepository)
+            .ucsbapiQuarterService(ucsbapiQuarterService)
+            .build();
+
+    job.updateCourses(ctx, "20222", "MATH");
+
+    var snapshots = org.mockito.ArgumentCaptor.forClass(EnrollmentDataPoint.class);
+    verify(enrollmentDataPointRepository, times(3)).save(snapshots.capture());
+    assertEquals(
+        java.util.Arrays.asList(null, 0, 23),
+        snapshots.getAllValues().stream().map(EnrollmentDataPoint::getEnrollment).toList());
+    for (ConvertedSection section : sections) {
+      verify(courseCacheService).upsertSection(section);
+    }
+    var update = org.mockito.ArgumentCaptor.forClass(Update.class);
+    verify(updateCollection).save(update.capture());
+    assertEquals(2, update.getValue().getSaved());
+    assertEquals(1, update.getValue().getUpdated());
+    assertEquals(0, update.getValue().getErrors());
+  }
+
+  @Test
   void snapshotFailureCountsPersistedSectionAndErrorThenContinues() throws Exception {
     List<ConvertedSection> sections =
         CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B)

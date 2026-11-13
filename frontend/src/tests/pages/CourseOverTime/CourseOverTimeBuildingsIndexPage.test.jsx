@@ -26,6 +26,7 @@ describe("CourseOverTimeBuildingsIndexPage tests", () => {
   const classroomOrAll = (query) => query.classroom || "ALL";
   beforeEach(() => {
     axiosMock.resetHistory();
+    axiosMock.onPost("/api/public/course-data/ensure").reply(200, []);
     axiosMock
       .onGet("/api/currentUser")
       .reply(200, apiCurrentUserFixtures.userOnly);
@@ -49,6 +50,11 @@ describe("CourseOverTimeBuildingsIndexPage tests", () => {
   });
 
   test("calls UCSB Course over time search api correctly with correct response", async () => {
+    const missingWarning =
+      "Course data for MATH in quarter 20222 has not been loaded. A background update is scheduled or already running. Please check back in 5 minutes.";
+    axiosMock
+      .onPost("/api/public/course-data/ensure")
+      .reply(200, [missingWarning]);
     axiosMock
       .onGet("/api/public/courseovertime/buildingsearch")
       .reply(200, coursesInLib);
@@ -91,6 +97,12 @@ describe("CourseOverTimeBuildingsIndexPage tests", () => {
     expect(
       screen.getByText((text) => text.includes("184")),
     ).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(missingWarning);
+    expect(axiosMock.history.post[0].params).toEqual({
+      startQtr: "20222",
+      endQtr: "20222",
+      subjectArea: undefined,
+    });
   });
 
   test("filters sections by classroom when classroom is selected", async () => {

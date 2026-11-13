@@ -31,6 +31,7 @@ const CourseOverTimeBuildingsSearchForm = ({ fetchJSON }) => {
   const [buildingCode, setBuildingCode] = useState(localBuildingCode || "");
   const [availableClassrooms, setAvailableClassrooms] = useState([]);
   const [classroom, setClassroom] = useState("ALL");
+  const [classroomRefresh, setClassroomRefresh] = useState(0);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -60,7 +61,7 @@ const CourseOverTimeBuildingsSearchForm = ({ fetchJSON }) => {
       }
     }
     fetchClassrooms();
-  }, [Quarter, buildingCode]);
+  }, [Quarter, buildingCode, classroomRefresh]);
 
   return (
     <Form onSubmit={handleSubmit}>
@@ -105,6 +106,17 @@ const CourseOverTimeBuildingsSearchForm = ({ fetchJSON }) => {
                 ))}
               </Form.Select>
             </Form.Group>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setClassroomRefresh((value) => value + 1)}
+            >
+              Refresh classrooms
+            </Button>
+            <p>
+              If course data was missing, refresh classrooms after the
+              background update finishes.
+            </p>
           </Col>
         </Row>
 
