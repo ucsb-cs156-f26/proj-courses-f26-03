@@ -7,6 +7,7 @@ import {
   getLectureSection,
   getLectureInstructors,
   getMaxSectionCount,
+  hasPassData,
   getSectionBarColor,
   isLectureSection,
   isSameCourse,
@@ -165,17 +166,26 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
       expect(rows[3].isSpacer).toBe(true);
     });
 
-    test("puts the instructor (or lecture) under each class's middle bar", () => {
+    test("puts the instructor (or lecture) and bar count on each class's first bar", () => {
       expect(rows.map((r) => r.groupLabel)).toEqual([
-        undefined,
         "Lecture 0100",
+        undefined,
         undefined,
         undefined,
         "Lecture 0200",
         undefined,
         "Lecture 0300",
       ]);
-      expect(named[1].groupLabel).toBe("CONRAD P T");
+      expect(rows.map((r) => r.groupSize)).toEqual([
+        3,
+        undefined,
+        undefined,
+        undefined,
+        1,
+        undefined,
+        1,
+      ]);
+      expect(named[0].groupLabel).toBe("CONRAD P T");
     });
 
     test("colors discussions by position and Total in blue", () => {
@@ -198,6 +208,17 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
     test("returns no rows for no classes", () => {
       expect(createEnrollmentBarRows()).toEqual([]);
     });
+  });
+
+  test("hasPassData is true only if some bar has a pass value", () => {
+    expect(hasPassData([{ isSpacer: true }, { pass1: null, pass2: 4 }])).toBe(
+      true,
+    );
+    expect(hasPassData([{ pass1: 0, pass2: null }])).toBe(true);
+    expect(
+      hasPassData([{ pass1: null, pass2: null }, { isSpacer: true }]),
+    ).toBe(false);
+    expect(hasPassData()).toBe(false);
   });
 
   test("getMaxSectionCount returns the most discussions in any class", () => {

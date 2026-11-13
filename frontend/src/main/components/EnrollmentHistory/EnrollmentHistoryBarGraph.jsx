@@ -5,6 +5,7 @@ import {
   createEnrollmentBarRows,
   getMaxSectionCount,
   getSectionBarColor,
+  hasPassData,
   TOTAL_BAR_COLOR,
 } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
 
@@ -52,26 +53,38 @@ export const PassMarkerBar = ({ x, y, width, height, payload }) => {
   );
 };
 
-// X-axis label: the instructor's name, bold, under each class's middle bar.
-export const EnrollmentBarTick = ({ x, y, payload, rows, diagonal }) => {
-  const label = rows.find((r) => r.key === payload.value)?.groupLabel;
-  if (!label) {
+// X-axis label: the instructor's name, bold, centered under all of a class's
+// bars. The tick sits under the class's first bar; bars are evenly spaced
+// across the axis width, so shift right by half the class's extra bars.
+export const EnrollmentBarTick = ({
+  x,
+  y,
+  width,
+  visibleTicksCount,
+  payload,
+  rows,
+  diagonal,
+  fontSize,
+}) => {
+  const row = rows.find((r) => r.key === payload.value);
+  if (!row?.groupLabel) {
     return null;
   }
+  const centerX = x + ((row.groupSize - 1) / 2) * (width / visibleTicksCount);
   return (
-    // Stryker disable all: label styling
     <text
-      x={x}
+      x={centerX}
       y={y}
-      dy={14}
-      transform={diagonal ? `rotate(-35, ${x}, ${y})` : undefined}
+      // Stryker disable all: label styling
+      dy={fontSize + 2}
+      transform={diagonal ? `rotate(-35, ${centerX}, ${y})` : undefined}
       textAnchor={diagonal ? "end" : "middle"}
-      fontSize={12}
+      fontSize={fontSize}
       fontWeight="bold"
+      // Stryker restore all
     >
-      {label}
+      {row.groupLabel}
     </text>
-    // Stryker restore all
   );
 };
 
@@ -128,6 +141,8 @@ const EnrollmentHistoryBarGraph = ({
   const classes = createEnrollmentBarChartData(data, yyyyq, passDates);
   const rows = createEnrollmentBarRows(classes, instructors);
   const diagonal = classes.length > MAX_FLAT_LABELS;
+  // Bigger names when one or two lectures each get a wide stretch of axis
+  const labelFontSize = classes.length <= 2 ? 18 : 12;
 
   return (
     <div data-testid="enrollment-history-bar-graph">
@@ -147,8 +162,14 @@ const EnrollmentHistoryBarGraph = ({
                 dataKey="key"
                 interval={0}
                 tickLine={false}
-                height={diagonal ? 120 : 40}
-                tick={<EnrollmentBarTick rows={rows} diagonal={diagonal} />}
+                height={diagonal ? 120 : 45}
+                tick={
+                  <EnrollmentBarTick
+                    rows={rows}
+                    diagonal={diagonal}
+                    fontSize={labelFontSize}
+                  />
+                }
               />
               <YAxis allowDecimals={false} />
               <Bar
@@ -160,6 +181,12 @@ const EnrollmentHistoryBarGraph = ({
             </BarChart>
           </ResponsiveContainer>
           <EnrollmentLegend sectionCount={getMaxSectionCount(classes)} />
+          {!hasPassData(rows) && (
+            <p className="small text-muted mt-2">
+              No pass lines: there is no enrollment data from before the end of
+              Pass 1 or Pass 2 for this quarter.
+            </p>
+          )}
         </>
       )}
     </div>

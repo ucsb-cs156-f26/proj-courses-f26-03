@@ -147,8 +147,9 @@ export const getSectionBarColor = (index) =>
   sectionBarColors[index % sectionBarColors.length];
 
 // Flattens classes into the left-to-right list of bars Recharts draws, with
-// an empty gap bar between classes and the lecture's instructor (or its
-// section number if unknown) under the class's middle bar.
+// an empty gap bar between classes. The first bar of each class carries the
+// lecture's instructor (or section number if unknown) and how many bars the
+// class has, so the label can be centered under all of them.
 export const createEnrollmentBarRows = (classes = [], instructors = {}) => {
   const rows = [];
   classes.forEach((classData, classIndex) => {
@@ -168,8 +169,9 @@ export const createEnrollmentBarRows = (classes = [], instructors = {}) => {
         color: TOTAL_BAR_COLOR,
       });
     }
-    classRows[Math.floor((classRows.length - 1) / 2)].groupLabel =
+    classRows[0].groupLabel =
       instructors[lectureSection] || `Lecture ${lectureSection}`;
+    classRows[0].groupSize = classRows.length;
     rows.push(...classRows);
   });
   return rows;
@@ -190,6 +192,10 @@ export const getLectureInstructors = (primaries = [], courseId = "") =>
         p.primary.instructors.map((i) => i.instructor).join(", "),
       ]),
   );
+
+// True if any bar has a pass 1 or pass 2 value to draw.
+export const hasPassData = (rows = []) =>
+  rows.some((row) => row.pass1 != null || row.pass2 != null);
 
 // True if a courseId (e.g. "CMPSC   130A -1" or "CMPSC   130A ") is this
 // course, since searches also return courses sharing the prefix.

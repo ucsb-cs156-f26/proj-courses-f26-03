@@ -59,6 +59,34 @@ describe("EnrollmentHistoryBarGraph", () => {
     expect(
       screen.getByTestId("pass-marker-0100-total-pass2"),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/No pass lines/)).not.toBeInTheDocument();
+    // Two lectures: names are big and flat
+    expect(screen.getByText("CONRAD P T")).toHaveAttribute("font-size", "18");
+    expect(screen.getByText("CONRAD P T")).not.toHaveAttribute("transform");
+  });
+
+  test("uses small diagonal names for many lectures", async () => {
+    const data = [1, 2, 3, 4, 5, 6, 7].map((n) => ({
+      yyyyq: "20262",
+      courseId: "WRIT      2  -1",
+      section: `0${n}00`,
+      enrollment: 20,
+      dateCreated: "2026-11-06T00:00:00",
+    }));
+    render(<EnrollmentHistoryBarGraph data={data} yyyyq="20262" />);
+    const label = await screen.findByText("Lecture 0700");
+    expect(label).toHaveAttribute("font-size", "12");
+    expect(label.getAttribute("transform")).toMatch(/^rotate\(-35/);
+  });
+
+  test("explains missing pass lines when no bar has pass data", async () => {
+    render(
+      <EnrollmentHistoryBarGraph
+        data={enrollmentBarChartFixtures.twoLecturesWithSections}
+        yyyyq="20262"
+      />,
+    );
+    expect(await screen.findByText(/No pass lines/)).toBeInTheDocument();
   });
 
   test("uses the default title and shows a message when there is no data", () => {
@@ -159,45 +187,49 @@ describe("PassMarkerBar", () => {
 
 describe("EnrollmentBarTick", () => {
   const rows = [
-    { key: "0100-0101" },
-    { key: "0100-total", groupLabel: "CONRAD P T" },
+    { key: "0100-0101", groupLabel: "CONRAD P T", groupSize: 4 },
+    { key: "0100-0102" },
+    { key: "0200-total", groupLabel: "WANG R K", groupSize: 1 },
   ];
+  // 10 bars across 500px: bars are 50px apart
+  const tickProps = { y: 6, width: 500, visibleTicksCount: 10, rows };
 
-  test("shows the instructor in bold under the class's middle bar", () => {
+  test("centers the name under all of the class's bars", () => {
     renderInSvg(
       <EnrollmentBarTick
-        x={5}
-        y={6}
-        payload={{ value: "0100-total" }}
-        rows={rows}
+        {...tickProps}
+        x={100}
+        payload={{ value: "0100-0101" }}
+        fontSize={18}
       />,
     );
+    // 4 bars: middle is 1.5 bars (75px) right of the first
     const label = screen.getByText("CONRAD P T");
-    expect(label).toHaveAttribute("x", "5");
+    expect(label).toHaveAttribute("x", "175");
+    expect(label).toHaveAttribute("font-size", "18");
     expect(label).toHaveAttribute("font-weight", "bold");
     expect(label).toHaveAttribute("text-anchor", "middle");
     expect(label).not.toHaveAttribute("transform");
   });
 
-  test("draws the name diagonally when asked", () => {
+  test("keeps a one-bar class's name under its bar, diagonal when asked", () => {
     renderInSvg(
       <EnrollmentBarTick
-        x={5}
-        y={6}
-        payload={{ value: "0100-total" }}
-        rows={rows}
+        {...tickProps}
+        x={100}
+        payload={{ value: "0200-total" }}
         diagonal
+        fontSize={12}
       />,
     );
-    expect(screen.getByText("CONRAD P T")).toHaveAttribute(
-      "transform",
-      "rotate(-35, 5, 6)",
-    );
+    const label = screen.getByText("WANG R K");
+    expect(label).toHaveAttribute("x", "100");
+    expect(label).toHaveAttribute("transform", "rotate(-35, 100, 6)");
   });
 
   test("draws nothing under other bars", () => {
     const { container } = renderInSvg(
-      <EnrollmentBarTick payload={{ value: "0100-0101" }} rows={rows} />,
+      <EnrollmentBarTick {...tickProps} payload={{ value: "0100-0102" }} />,
     );
     expect(container.querySelector("text")).toBeNull();
   });
