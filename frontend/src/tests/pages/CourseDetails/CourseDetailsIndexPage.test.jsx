@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router-dom";
 import axios from "axios";
@@ -10,7 +10,10 @@ import { apiCurrentUserFixtures } from "fixtures/currentUserFixtures";
 import { systemInfoFixtures } from "fixtures/systemInfoFixtures";
 import { personalSectionsFixtures } from "fixtures/personalSectionsFixtures";
 import { oneQuarterCourse } from "fixtures/gradeHistoryFixtures";
-import { enrollmentDataPointFixtures } from "fixtures/enrollmentDataPointFixtures";
+import {
+  enrollmentBarChartFixtures,
+  enrollmentPassDatesFixtures,
+} from "fixtures/enrollmentDataPointFixtures";
 
 const mockToast = vi.fn();
 vi.mock("react-toastify", async () => {
@@ -70,13 +73,28 @@ vi.mock("recharts", async () => {
 
 describe("CourseDetailsIndexPage tests", () => {
   const axiosMock = new AxiosMockAdapter(axios);
-  const enrollmentHistoryWithOtherSections =
-    enrollmentDataPointFixtures.cmpsc130aMultipleSectionsOverTime.map(
-      (dataPoint) =>
-        dataPoint.enrollCd === "07609"
-          ? { ...dataPoint, enrollCd: "06619" }
-          : dataPoint,
-    );
+  // Sample data relabelled as CHEM 184 in W22/S22, plus a CHEM 184A point
+  const quarterMap = { 20262: "20221", 20264: "20222" };
+  const chem184EnrollmentHistory = [
+    ...enrollmentBarChartFixtures.twoQuarters.map((dataPoint) => ({
+      ...dataPoint,
+      yyyyq: quarterMap[dataPoint.yyyyq],
+      courseId: "CHEM    184 -1",
+    })),
+    {
+      id: 9999,
+      yyyyq: "20221",
+      enrollCd: "99999",
+      courseId: "CHEM    184A-1",
+      section: "0300",
+      enrollment: 5,
+      dateCreated: "2026-04-01T08:15:00.000000",
+    },
+  ];
+  const allQuartersResponse = [
+    { ...enrollmentPassDatesFixtures.spring2026, quarter: "20221" },
+    { ...enrollmentPassDatesFixtures.fall2026, quarter: "20222" },
+  ];
   let queryClient;
   let enrollmentHistoryResponse;
 
@@ -103,7 +121,8 @@ describe("CourseDetailsIndexPage tests", () => {
         },
       },
     });
-    enrollmentHistoryResponse = enrollmentHistoryWithOtherSections;
+    enrollmentHistoryResponse = chem184EnrollmentHistory;
+    localStorage.clear();
     mockToast.mockClear();
     axiosMock.reset();
     axiosMock.resetHistory();
@@ -136,14 +155,32 @@ describe("CourseDetailsIndexPage tests", () => {
     axiosMock
       .onGet("/api/enrollment/search", {
         params: {
+          startQtr: "20084",
+          endQtr: "20222",
+          subjectArea: "CHEM",
+          courseNumber: "184",
+        },
+      })
+      .reply(() => [200, enrollmentHistoryResponse]);
+    axiosMock.onGet("/api/public/allQuarters").reply(200, allQuartersResponse);
+    axiosMock
+      .onGet("/api/public/courseovertime/search", {
+        params: {
           startQtr: "20221",
           endQtr: "20221",
           subjectArea: "CHEM",
           courseNumber: "184",
-          enrollCd: "06619",
         },
       })
-      .reply(() => [200, enrollmentHistoryResponse]);
+      .reply(200, [
+        {
+          courseId: "CHEM    184  ",
+          primary: {
+            section: "0100",
+            instructors: [{ instructor: "PROFESSOR X" }],
+          },
+        },
+      ]);
   });
 
   afterEach(() => {
@@ -186,7 +223,7 @@ describe("CourseDetailsIndexPage tests", () => {
     ).toBeInTheDocument();
   });
 
-  test("Calls enrollment history api correctly", async () => {
+  test("requests enrollment history for every section and quarter of the course", async () => {
     renderPage();
 
     await waitFor(() => {
@@ -202,57 +239,102 @@ describe("CourseDetailsIndexPage tests", () => {
     );
 
     expect(enrollmentHistoryRequest.params).toEqual({
-      startQtr: "20221",
-      endQtr: "20221",
+      startQtr: "20084",
+      endQtr: "20222",
       subjectArea: "CHEM",
       courseNumber: "184",
-      enrollCd: "06619",
     });
   });
 
-  test("passes returned enrollment history data to the graph", async () => {
+  test("shows every section of the page's quarter as a bar", async () => {
     renderPage();
 
-    expect(await screen.findByText("06619 - Section 0100")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("enrollment-bar-0100-0101"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("enrollment-bar-0100-total")).toBeInTheDocument();
+    expect(screen.getByText("Enrollment History – W22")).toBeInTheDocument();
+    expect(await screen.findByText("PROFESSOR X")).toBeInTheDocument();
   });
 
-  test("filters enrollment history graph to the selected enroll code", async () => {
+  test("leaves out other courses that share the course number prefix", async () => {
     renderPage();
 
-    expect(await screen.findByText("06619 - Section 0100")).toBeInTheDocument();
-    expect(screen.queryByText("07617 - Section 0101")).not.toBeInTheDocument();
-    expect(screen.queryByText("07625 - Section 0102")).not.toBeInTheDocument();
+    expect(
+      await screen.findByTestId("enrollment-bar-0100-total"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("enrollment-bar-0300-total"),
+    ).not.toBeInTheDocument();
   });
 
-  test("renders the selected enrollment history line in blue", async () => {
-    const { container } = renderPage();
+  test("switches the graph to the quarter picked in the dropdown", async () => {
+    renderPage();
 
-    expect(await screen.findByText("06619 - Section 0100")).toBeInTheDocument();
-    expect(container.querySelector(".recharts-line-curve")).toHaveAttribute(
-      "stroke",
-      "#0d6efd",
+    const dropdown = await screen.findByTestId(
+      "CourseDetails.EnrollmentQuarter",
     );
+    expect(
+      await screen.findByTestId("CourseDetails.EnrollmentQuarter-option-1"),
+    ).toBeInTheDocument();
+    expect(dropdown).toHaveValue("20221");
+    expect(
+      screen.getByTestId("CourseDetails.EnrollmentQuarter-option-0"),
+    ).toHaveTextContent("W22");
+    expect(
+      screen.getByTestId("CourseDetails.EnrollmentQuarter-option-1"),
+    ).toHaveTextContent("S22");
+    expect(
+      await screen.findByTestId("enrollment-bar-0100-0101"),
+    ).toBeInTheDocument();
+
+    fireEvent.change(dropdown, { target: { value: "20222" } });
+
+    expect(
+      await screen.findByText("Enrollment History – S22"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("enrollment-bar-0100-total")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("enrollment-bar-0100-0101"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("pass-marker-0100-total-pass1"),
+    ).toBeInTheDocument();
+  });
+
+  test("offers the page's quarter even when it has no enrollment data", async () => {
+    enrollmentHistoryResponse = [];
+    renderPage();
+
+    expect(
+      await screen.findByText("No enrollment data for this quarter."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("CourseDetails.EnrollmentQuarter-option-0"),
+    ).toHaveTextContent("W22");
+    expect(
+      screen.queryByTestId("CourseDetails.EnrollmentQuarter-option-1"),
+    ).not.toBeInTheDocument();
   });
 
   test("renders enrollment history graph between course description and grade history", async () => {
     renderPage();
 
     const courseDescription = await screen.findByText("Course Description");
-    const enrollmentHistoryGraph = await screen.findByTestId(
-      "enrollment-history-graph",
+    const enrollmentHistorySection = await screen.findByTestId(
+      "enrollment-history-section",
     );
     const gradeHistoryGraphs = await screen.findByTestId(
       "grade-history-graphs",
     );
 
-    expect(enrollmentHistoryGraph).toBeInTheDocument();
-    expect(screen.getByText("Enrollment History")).toBeInTheDocument();
+    expect(screen.getByTestId("enrollment-history-graph")).toBeInTheDocument();
     expect(
-      courseDescription.compareDocumentPosition(enrollmentHistoryGraph) &
+      courseDescription.compareDocumentPosition(enrollmentHistorySection) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      enrollmentHistoryGraph.compareDocumentPosition(gradeHistoryGraphs) &
+      enrollmentHistorySection.compareDocumentPosition(gradeHistoryGraphs) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });

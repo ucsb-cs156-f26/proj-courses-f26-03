@@ -1,5 +1,6 @@
 import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
 import _BasicCourseTable from "main/components/Courses/BasicCourseTable";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useBackend } from "main/utils/useBackend";
 import CourseDetailsTable from "main/components/CourseDetails/CourseDetailsTable";
@@ -8,12 +9,19 @@ import CourseDescriptionTable from "main/components/Courses/CourseDescriptionTab
 import GradeHistoryGraphs from "main/components/GradeHistory/GradeHistoryGraph";
 import FinalExamCard from "main/components/Finals/FinalExamCard";
 import EnrollmentHistoryGraph from "main/components/EnrollmentHistory/EnrollmentHistoryGraph";
-
-const selectedEnrollmentLineColors = ["#0d6efd"];
+import {
+  getEnrollmentQuarters,
+  getLectureInstructors,
+  isSameCourse,
+} from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
+import SingleQuarterDropdown from "main/components/Quarters/SingleQuarterDropdown";
+import { useSystemInfo } from "main/utils/systemInfo";
 
 export default function CourseDetailsIndexPage() {
   // Stryker disable next-line all : Can't test state because hook is internal
   let { qtr, enrollCode } = useParams();
+  const [enrollmentQuarter, setEnrollmentQuarter] = useState(qtr);
+  const { data: systemInfo } = useSystemInfo();
   const {
     data: moreDetails,
     _error,
@@ -73,27 +81,65 @@ export default function CourseDetailsIndexPage() {
       },
     },
   );
+  // Fetch enrollment history for every section and quarter of this course
+  const startQtr = systemInfo.startQtrYYYYQ;
+  const endQtr = systemInfo.endQtrYYYYQ;
   const { data: enrollmentHistory } = useBackend(
     [
-      `/api/enrollment/search?startQtr=${qtr}&endQtr=${qtr}&subjectArea=${subjectArea}&courseNumber=${trimmedCourseNumber}&enrollCd=${enrollCode}`,
+      `/api/enrollment/search?startQtr=${startQtr}&endQtr=${endQtr}&subjectArea=${subjectArea}&courseNumber=${trimmedCourseNumber}`,
     ],
     {
       method: "GET",
       url: "/api/enrollment/search",
       params: {
-        startQtr: qtr,
-        endQtr: qtr,
+        startQtr,
+        endQtr,
         subjectArea: subjectArea,
         courseNumber: trimmedCourseNumber,
-        enrollCd: enrollCode,
       },
     },
     [],
-    { enabled: Boolean(subjectArea && trimmedCourseNumber && enrollCode) },
+    { enabled: Boolean(subjectArea && trimmedCourseNumber) },
   );
-  const selectedEnrollmentHistory = enrollmentHistory.filter(
-    (dataPoint) => dataPoint.enrollCd === enrollCode,
+  const courseEnrollmentHistory = enrollmentHistory.filter((dataPoint) =>
+    isSameCourse(dataPoint.courseId, courseId),
   );
+
+  // Pass dates for the pass lines
+  const { data: allQuarters } = useBackend(
+    ["/api/public/allQuarters"],
+    { method: "GET", url: "/api/public/allQuarters" },
+    [],
+  );
+  const enrollmentPassDates =
+    allQuarters.find((quarter) => quarter.quarter === enrollmentQuarter) || {};
+
+  // Lectures in the selected quarter, for instructor names
+  const { data: enrollmentPrimaries } = useBackend(
+    // Stryker disable all : hard to test for query caching
+    [
+      `/api/public/courseovertime/search?startQtr=${enrollmentQuarter}&endQtr=${enrollmentQuarter}&subjectArea=${subjectArea}&courseNumber=${trimmedCourseNumber}`,
+    ],
+    {
+      method: "GET",
+      url: "/api/public/courseovertime/search",
+      params: {
+        startQtr: enrollmentQuarter,
+        endQtr: enrollmentQuarter,
+        subjectArea,
+        courseNumber: trimmedCourseNumber,
+      },
+    },
+    [],
+    { enabled: Boolean(subjectArea && trimmedCourseNumber) },
+    // Stryker restore all
+  );
+
+  // Quarters with data, plus the page's own quarter
+  const enrollmentQuarterOptions = getEnrollmentQuarters([
+    ...courseEnrollmentHistory,
+    { yyyyq: qtr },
+  ]).map((yyyyq) => ({ yyyyq, qyy: yyyyqToQyy(yyyyq) }));
 
   return (
     <BasicLayout>
@@ -111,10 +157,24 @@ export default function CourseDetailsIndexPage() {
         {moreDetails && <CourseDetailsTable details={[moreDetails]} />}
         {moreDetails && <CourseDescriptionTable course={moreDetails} />}
         {moreDetails && (
-          <EnrollmentHistoryGraph
-            data={selectedEnrollmentHistory}
-            lineColors={selectedEnrollmentLineColors}
-          />
+          <div data-testid="enrollment-history-section">
+            <div style={{ maxWidth: "12rem" }}>
+              <SingleQuarterDropdown
+                quarter={enrollmentQuarter}
+                quarters={enrollmentQuarterOptions}
+                setQuarter={setEnrollmentQuarter}
+                controlId="CourseDetails.EnrollmentQuarter"
+                label="Enrollment History Quarter"
+              />
+            </div>
+            <EnrollmentHistoryGraph
+              data={courseEnrollmentHistory}
+              yyyyq={enrollmentQuarter}
+              passDates={enrollmentPassDates}
+              instructors={getLectureInstructors(enrollmentPrimaries, courseId)}
+              title={`Enrollment History – ${yyyyqToQyy(enrollmentQuarter)}`}
+            />
+          </div>
         )}
         {gradeHistory && <GradeHistoryGraphs gradeHistory={gradeHistory} />}
       </div>
