@@ -2,7 +2,7 @@ import OurPagination from "main/components/Utils/OurPagination";
 import { useState } from "react";
 
 export default {
-  title: "components/Common/OurPagination",
+  title: "components/Utils/OurPagination",
   component: OurPagination,
 };
 
