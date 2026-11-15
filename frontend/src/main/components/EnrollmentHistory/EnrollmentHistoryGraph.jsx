@@ -3,9 +3,8 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import {
   createEnrollmentBarChartData,
   createEnrollmentBarRows,
-  getMaxSectionCount,
-  getSectionBarColor,
   hasPassData,
+  roundedTopPath,
   TOTAL_BAR_COLOR,
 } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
 
@@ -14,8 +13,9 @@ const PASS_LINES = [
   { key: "pass2", label: "End of Pass 2", dash: "4 3" },
 ];
 
-// Above this many classes, instructor names are drawn diagonally to fit.
+// Above these counts, labels are drawn diagonally to fit.
 const MAX_FLAT_LABELS = 6;
+const MAX_FLAT_TIMES = 12;
 
 // A bar with its pass lines, capped at the top of the bar.
 export const PassMarkerBar = ({ x, y, width, height, payload }) => {
@@ -25,7 +25,7 @@ export const PassMarkerBar = ({ x, y, width, height, payload }) => {
   const pixelsPerStudent = height / payload.enrollment;
   return (
     <g data-testid={`enrollment-bar-${payload.key}`}>
-      <rect x={x} y={y} width={width} height={height} fill={payload.color} />
+      <path d={roundedTopPath(x, y, width, height)} fill={payload.color} />
       {payload.enrollment > 0 &&
         PASS_LINES.filter((line) => payload[line.key] != null).map((line) => {
           const value = Math.min(payload[line.key], payload.enrollment);
@@ -50,8 +50,9 @@ export const PassMarkerBar = ({ x, y, width, height, payload }) => {
   );
 };
 
-// Instructor name centered under a class's bars. The tick sits under the
-// class's first bar, so shift right by half the width of the remaining bars.
+// A section bar's meeting time under the bar, and the instructor's name
+// centered under the class's bars. The tick sits under each bar, so the name
+// (on the class's first bar) shifts right by half the remaining bars' width.
 export const EnrollmentBarTick = ({
   x,
   y,
@@ -61,50 +62,60 @@ export const EnrollmentBarTick = ({
   rows,
   diagonal,
   fontSize,
+  timesDiagonal,
+  timeSpace,
 }) => {
   const row = rows.find((r) => r.key === payload.value);
-  if (!row?.groupLabel) {
-    return null;
-  }
   const centerX = x + ((row.groupSize - 1) / 2) * (width / visibleTicksCount);
+  const nameY = y + timeSpace;
   return (
-    <text
-      x={centerX}
-      y={y}
-      // Stryker disable all: label styling
-      dy={fontSize + 2}
-      transform={diagonal ? `rotate(-35, ${centerX}, ${y})` : undefined}
-      textAnchor={diagonal ? "end" : "middle"}
-      fontSize={fontSize}
-      fontWeight="bold"
-      // Stryker restore all
-    >
-      {row.groupLabel}
-    </text>
+    <g>
+      {row.timeLabel && (
+        <text
+          x={x}
+          y={y}
+          // Stryker disable all: label styling
+          dy={12}
+          transform={timesDiagonal ? `rotate(-35, ${x}, ${y})` : undefined}
+          textAnchor={timesDiagonal ? "end" : "middle"}
+          fontSize={11}
+          fill="#495057"
+          // Stryker restore all
+        >
+          {row.timeLabel}
+        </text>
+      )}
+      {row.groupLabel && (
+        <text
+          x={centerX}
+          y={nameY}
+          // Stryker disable all: label styling
+          dy={fontSize + 2}
+          transform={diagonal ? `rotate(-35, ${centerX}, ${nameY})` : undefined}
+          textAnchor={diagonal ? "end" : "middle"}
+          fontSize={fontSize}
+          fontWeight="bold"
+          // Stryker restore all
+        >
+          {row.groupLabel}
+        </text>
+      )}
+    </g>
   );
 };
 
-export const EnrollmentLegend = ({ sectionCount }) => {
-  const items = [
-    ...Array.from({ length: sectionCount }, (_, i) => ({
-      label: `Section ${i + 1}`,
-      color: getSectionBarColor(i),
-    })),
-    { label: "Total", color: TOTAL_BAR_COLOR },
-  ];
+export const EnrollmentLegend = () => {
   return (
     <div
       data-testid="enrollment-legend"
       className="d-flex flex-wrap gap-3 small"
     >
-      {items.map((item) => (
-        <span key={item.label}>
-          <svg width={12} height={12} className="me-1">
-            <rect width={12} height={12} fill={item.color} />
-          </svg>
-          {item.label}
-        </span>
-      ))}
+      <span>
+        <svg width={12} height={12} className="me-1">
+          <rect width={12} height={12} rx={2} fill={TOTAL_BAR_COLOR} />
+        </svg>
+        Total
+      </span>
       {PASS_LINES.map((line) => (
         <span key={line.key}>
           <svg width={24} height={12} className="me-1">
@@ -130,12 +141,17 @@ const EnrollmentHistoryGraph = ({
   yyyyq,
   passDates = {},
   instructors = {},
+  sectionTimes = {},
   title = "Enrollment History",
 }) => {
   const classes = createEnrollmentBarChartData(data, yyyyq, passDates);
-  const rows = createEnrollmentBarRows(classes, instructors);
+  const rows = createEnrollmentBarRows(classes, instructors, sectionTimes);
   const diagonal = classes.length > MAX_FLAT_LABELS;
   const labelFontSize = classes.length <= 2 ? 18 : 12;
+  const timesDiagonal = rows.length > MAX_FLAT_TIMES;
+  const hasTimes = rows.some((row) => row.timeLabel);
+  // Room under the bars for the time labels, above the instructor names
+  const timeSpace = hasTimes ? (timesDiagonal ? 60 : 20) : 0;
 
   return (
     <div data-testid="enrollment-history-graph">
@@ -144,7 +160,10 @@ const EnrollmentHistoryGraph = ({
         <p>No enrollment data for this quarter.</p>
       ) : (
         <>
-          <ResponsiveContainer width="100%" height={diagonal ? 440 : 360}>
+          <ResponsiveContainer
+            width="100%"
+            height={timeSpace + (diagonal ? 440 : 360)}
+          >
             <BarChart
               data={rows}
               // Stryker disable all
@@ -155,12 +174,14 @@ const EnrollmentHistoryGraph = ({
                 dataKey="key"
                 interval={0}
                 tickLine={false}
-                height={diagonal ? 120 : 45}
+                height={timeSpace + (diagonal ? 120 : 45)}
                 tick={
                   <EnrollmentBarTick
                     rows={rows}
                     diagonal={diagonal}
                     fontSize={labelFontSize}
+                    timesDiagonal={timesDiagonal}
+                    timeSpace={timeSpace}
                   />
                 }
               />
@@ -173,7 +194,7 @@ const EnrollmentHistoryGraph = ({
               />
             </BarChart>
           </ResponsiveContainer>
-          <EnrollmentLegend sectionCount={getMaxSectionCount(classes)} />
+          <EnrollmentLegend />
           {!hasPassData(rows) && (
             <p className="small text-muted mt-2">
               No pass lines: there is no enrollment data from before the end of

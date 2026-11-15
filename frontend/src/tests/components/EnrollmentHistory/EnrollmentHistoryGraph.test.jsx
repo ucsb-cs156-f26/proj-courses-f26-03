@@ -10,6 +10,7 @@ import EnrollmentHistoryGraph, {
   PassMarkerBar,
 } from "main/components/EnrollmentHistory/EnrollmentHistoryGraph";
 import {
+  roundedTopPath,
   sectionBarColors,
   TOTAL_BAR_COLOR,
 } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
@@ -43,6 +44,7 @@ describe("EnrollmentHistoryGraph", () => {
         yyyyq="20262"
         passDates={enrollmentPassDatesFixtures.spring2026}
         instructors={{ "0100": "CONRAD P T" }}
+        sectionTimes={{ "0101": "R 2:00PM" }}
         title="CMPSC 130A Enrollment"
       />,
     );
@@ -63,6 +65,51 @@ describe("EnrollmentHistoryGraph", () => {
     // Two lectures: names are big and flat
     expect(screen.getByText("CONRAD P T")).toHaveAttribute("font-size", "18");
     expect(screen.getByText("CONRAD P T")).not.toHaveAttribute("transform");
+    // Sections show their time, or their position if the time is unknown
+    expect(screen.getByText("R 2:00PM")).not.toHaveAttribute("transform");
+    expect(screen.getAllByText("Section 2")).toHaveLength(2);
+  });
+
+  // Lectures 0100, 0200, ... with the given number of discussion sections
+  const lecturesWithSections = (sectionCounts) =>
+    sectionCounts.flatMap((count, i) =>
+      Array.from({ length: count + 1 }, (_, j) => ({
+        yyyyq: "20262",
+        courseId: "CMPSC   130A -1",
+        section: `0${i + 1}0${j}`,
+        enrollment: 20,
+        dateCreated: "2026-11-06T00:00:00",
+      })),
+    );
+  const chartHeight = (container) =>
+    container.querySelector(".recharts-wrapper").style.height;
+
+  test("leaves room for flat time labels when there are few bars", async () => {
+    // 6 + gap + 5 = 12 bars
+    const { container } = render(
+      <EnrollmentHistoryGraph
+        data={lecturesWithSections([5, 4])}
+        yyyyq="20262"
+      />,
+    );
+    expect((await screen.findAllByText("Section 1"))[0]).not.toHaveAttribute(
+      "transform",
+    );
+    expect(chartHeight(container)).toBe("380px");
+  });
+
+  test("tilts time labels and leaves more room when there are many bars", async () => {
+    // 6 + gap + 6 = 13 bars
+    const { container } = render(
+      <EnrollmentHistoryGraph
+        data={lecturesWithSections([5, 5])}
+        yyyyq="20262"
+      />,
+    );
+    expect(
+      (await screen.findAllByText("Section 1"))[0].getAttribute("transform"),
+    ).toMatch(/^rotate\(-35/);
+    expect(chartHeight(container)).toBe("420px");
   });
 
   test("uses small diagonal names for many lectures", async () => {
@@ -73,10 +120,14 @@ describe("EnrollmentHistoryGraph", () => {
       enrollment: 20,
       dateCreated: "2026-11-06T00:00:00",
     }));
-    render(<EnrollmentHistoryGraph data={data} yyyyq="20262" />);
+    const { container } = render(
+      <EnrollmentHistoryGraph data={data} yyyyq="20262" />,
+    );
     const label = await screen.findByText("Lecture 0700");
     expect(label).toHaveAttribute("font-size", "12");
     expect(label.getAttribute("transform")).toMatch(/^rotate\(-35/);
+    // No sections, so no room for time labels
+    expect(chartHeight(container)).toBe("440px");
   });
 
   test("explains missing pass lines when no bar has pass data", async () => {
@@ -99,6 +150,25 @@ describe("EnrollmentHistoryGraph", () => {
   });
 });
 
+describe("roundedTopPath", () => {
+  test("rounds the top corners by up to 6px", () => {
+    expect(roundedTopPath(10, 20, 40, 200)).toBe(
+      "M10,220 V26 Q10,20 16,20 H44 Q50,20 50,26 V220 Z",
+    );
+  });
+
+  test("keeps the rounding within narrow or short bars", () => {
+    // Narrow: radius is half the width
+    expect(roundedTopPath(0, 0, 4, 100)).toBe(
+      "M0,100 V2 Q0,0 2,0 H2 Q4,0 4,2 V100 Z",
+    );
+    // Short: radius is the height
+    expect(roundedTopPath(0, 0, 40, 3)).toBe(
+      "M0,3 V3 Q0,0 3,0 H37 Q40,0 40,3 V3 Z",
+    );
+  });
+});
+
 describe("PassMarkerBar", () => {
   const row = {
     key: "0100-0101",
@@ -112,14 +182,11 @@ describe("PassMarkerBar", () => {
     renderInSvg(
       <PassMarkerBar x={10} y={20} width={40} height={200} payload={row} />,
     );
-    const rect = screen
+    const bar = screen
       .getByTestId("enrollment-bar-0100-0101")
-      .querySelector("rect");
-    expect(rect).toHaveAttribute("x", "10");
-    expect(rect).toHaveAttribute("y", "20");
-    expect(rect).toHaveAttribute("width", "40");
-    expect(rect).toHaveAttribute("height", "200");
-    expect(rect).toHaveAttribute("fill", sectionBarColors[0]);
+      .querySelector("path");
+    expect(bar).toHaveAttribute("d", roundedTopPath(10, 20, 40, 200));
+    expect(bar).toHaveAttribute("fill", sectionBarColors[0]);
 
     // 30 of 100 students is 30% up from the bottom: 220 - 60 = 160
     const p1 = screen.getByTestId("pass-marker-0100-0101-pass1");
@@ -181,20 +248,32 @@ describe("PassMarkerBar", () => {
     const { container } = renderInSvg(
       <PassMarkerBar payload={{ key: "gap-0200", isSpacer: true }} />,
     );
-    expect(container.querySelector("rect")).toBeNull();
+    expect(container.querySelector("path")).toBeNull();
   });
 });
 
 describe("EnrollmentBarTick", () => {
   const rows = [
-    { key: "0100-0101", groupLabel: "CONRAD P T", groupSize: 4 },
-    { key: "0100-0102" },
+    {
+      key: "0100-0101",
+      timeLabel: "R 2:00PM",
+      groupLabel: "CONRAD P T",
+      groupSize: 4,
+    },
+    { key: "0100-0102", timeLabel: "R 3:00PM" },
     { key: "0200-total", groupLabel: "WANG R K", groupSize: 1 },
+    { key: "gap-0200" },
   ];
   // 10 bars across 500px: bars are 50px apart
-  const tickProps = { y: 6, width: 500, visibleTicksCount: 10, rows };
+  const tickProps = {
+    y: 6,
+    width: 500,
+    visibleTicksCount: 10,
+    rows,
+    timeSpace: 20,
+  };
 
-  test("centers the name under all of the class's bars", () => {
+  test("centers the name under all of the class's bars, below the times", () => {
     renderInSvg(
       <EnrollmentBarTick
         {...tickProps}
@@ -206,10 +285,31 @@ describe("EnrollmentBarTick", () => {
     // 4 bars: middle is 1.5 bars (75px) right of the first
     const label = screen.getByText("CONRAD P T");
     expect(label).toHaveAttribute("x", "175");
+    expect(label).toHaveAttribute("y", "26");
     expect(label).toHaveAttribute("font-size", "18");
     expect(label).toHaveAttribute("font-weight", "bold");
     expect(label).toHaveAttribute("text-anchor", "middle");
     expect(label).not.toHaveAttribute("transform");
+
+    const time = screen.getByText("R 2:00PM");
+    expect(time).toHaveAttribute("x", "100");
+    expect(time).toHaveAttribute("y", "6");
+    expect(time).toHaveAttribute("text-anchor", "middle");
+    expect(time).not.toHaveAttribute("transform");
+  });
+
+  test("tilts the time when asked", () => {
+    renderInSvg(
+      <EnrollmentBarTick
+        {...tickProps}
+        x={100}
+        payload={{ value: "0100-0102" }}
+        timesDiagonal
+      />,
+    );
+    const time = screen.getByText("R 3:00PM");
+    expect(time).toHaveAttribute("transform", "rotate(-35, 100, 6)");
+    expect(time).toHaveAttribute("text-anchor", "end");
   });
 
   test("keeps a one-bar class's name under its bar, diagonal when asked", () => {
@@ -224,34 +324,28 @@ describe("EnrollmentBarTick", () => {
     );
     const label = screen.getByText("WANG R K");
     expect(label).toHaveAttribute("x", "100");
-    expect(label).toHaveAttribute("transform", "rotate(-35, 100, 6)");
+    expect(label).toHaveAttribute("transform", "rotate(-35, 100, 26)");
   });
 
-  test("draws nothing under other bars", () => {
+  test("draws nothing under a gap", () => {
     const { container } = renderInSvg(
-      <EnrollmentBarTick {...tickProps} payload={{ value: "0100-0102" }} />,
+      <EnrollmentBarTick {...tickProps} payload={{ value: "gap-0200" }} />,
     );
     expect(container.querySelector("text")).toBeNull();
   });
 });
 
 describe("EnrollmentLegend", () => {
-  test("lists each section color, Total, and both pass lines", () => {
-    const { container } = render(<EnrollmentLegend sectionCount={2} />);
-    expect(screen.getByText("Section 1")).toBeInTheDocument();
-    expect(screen.getByText("Section 2")).toBeInTheDocument();
-    expect(screen.queryByText("Section 3")).not.toBeInTheDocument();
+  test("lists Total and both pass lines", () => {
+    const { container } = render(<EnrollmentLegend />);
     expect(screen.getByText("Total")).toBeInTheDocument();
     expect(screen.getByText("End of Pass 1")).toBeInTheDocument();
     expect(screen.getByText("End of Pass 2")).toBeInTheDocument();
-    const fills = [...container.querySelectorAll("rect")].map((r) =>
-      r.getAttribute("fill"),
-    );
-    expect(fills).toEqual([
-      sectionBarColors[0],
-      sectionBarColors[1],
+    expect(screen.queryByText(/Section/)).not.toBeInTheDocument();
+    expect(container.querySelector("rect")).toHaveAttribute(
+      "fill",
       TOTAL_BAR_COLOR,
-    ]);
+    );
     const dashes = [...container.querySelectorAll("line")].map((l) =>
       l.getAttribute("stroke-dasharray"),
     );

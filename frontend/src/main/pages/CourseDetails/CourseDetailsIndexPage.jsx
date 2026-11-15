@@ -12,6 +12,7 @@ import EnrollmentHistoryGraph from "main/components/EnrollmentHistory/Enrollment
 import {
   getEnrollmentQuarters,
   getLectureInstructors,
+  getSectionTimes,
   isSameCourse,
 } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
 import SingleQuarterDropdown from "main/components/Quarters/SingleQuarterDropdown";
@@ -114,7 +115,7 @@ export default function CourseDetailsIndexPage() {
   const enrollmentPassDates =
     allQuarters.find((quarter) => quarter.quarter === enrollmentQuarter) || {};
 
-  // Lectures in the selected quarter, for instructor names
+  // Lectures in the selected quarter, for instructor names and section times
   const { data: enrollmentPrimaries } = useBackend(
     // Stryker disable all : hard to test for query caching
     [
@@ -172,6 +173,7 @@ export default function CourseDetailsIndexPage() {
               yyyyq={enrollmentQuarter}
               passDates={enrollmentPassDates}
               instructors={getLectureInstructors(enrollmentPrimaries, courseId)}
+              sectionTimes={getSectionTimes(enrollmentPrimaries, courseId)}
               title={`Enrollment History – ${yyyyqToQyy(enrollmentQuarter)}`}
             />
           </div>

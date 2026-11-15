@@ -179,6 +179,12 @@ describe("CourseDetailsIndexPage tests", () => {
             section: "0100",
             instructors: [{ instructor: "PROFESSOR X" }],
           },
+          subRows: [
+            {
+              section: "0101",
+              timeLocations: [{ days: "   R   ", beginTime: "14:00" }],
+            },
+          ],
         },
       ]);
   });
@@ -255,6 +261,7 @@ describe("CourseDetailsIndexPage tests", () => {
     expect(screen.getByTestId("enrollment-bar-0100-total")).toBeInTheDocument();
     expect(screen.getByText("Enrollment History – W22")).toBeInTheDocument();
     expect(await screen.findByText("PROFESSOR X")).toBeInTheDocument();
+    expect(screen.getByText("R 2:00PM")).toBeInTheDocument();
   });
 
   test("leaves out other courses that share the course number prefix", async () => {

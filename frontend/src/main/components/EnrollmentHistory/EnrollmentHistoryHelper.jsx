@@ -64,18 +64,18 @@ export const createEnrollmentBarChartData = (
 };
 
 // Stryker disable all: color choices are visual styling for chart bars
-export const TOTAL_BAR_COLOR = "#0d6efd";
+export const TOTAL_BAR_COLOR = "#4a6fa5";
 export const sectionBarColors = [
-  "#fd7e14",
-  "#20c997",
-  "#d63384",
-  "#ffc107",
-  "#6f42c1",
-  "#198754",
-  "#dc3545",
-  "#8c564b",
-  "#adb5bd",
-  "#bcbd22",
+  "#e0a15e",
+  "#6fae98",
+  "#c47f9b",
+  "#d6bf6a",
+  "#8f7db5",
+  "#7fa26c",
+  "#c77370",
+  "#9c8473",
+  "#a3a9b0",
+  "#adb067",
 ];
 // Stryker restore all
 
@@ -83,8 +83,13 @@ export const getSectionBarColor = (index) =>
   sectionBarColors[index % sectionBarColors.length];
 
 // Flattens classes into the bars Recharts draws, with a gap between classes.
-// Each class's first bar carries its label and bar count for centering.
-export const createEnrollmentBarRows = (classes = [], instructors = {}) => {
+// Section bars carry their meeting time; each class's first bar carries the
+// instructor label and bar count for centering.
+export const createEnrollmentBarRows = (
+  classes = [],
+  instructors = {},
+  sectionTimes = {},
+) => {
   const rows = [];
   classes.forEach((classData, classIndex) => {
     const { lectureSection } = classData;
@@ -95,6 +100,7 @@ export const createEnrollmentBarRows = (classes = [], instructors = {}) => {
       ...bar,
       key: `${lectureSection}-${bar.section}`,
       color: getSectionBarColor(index),
+      timeLabel: sectionTimes[bar.section] || `Section ${index + 1}`,
     }));
     if (classData.total) {
       classRows.push({
@@ -111,9 +117,6 @@ export const createEnrollmentBarRows = (classes = [], instructors = {}) => {
   return rows;
 };
 
-export const getMaxSectionCount = (classes = []) =>
-  Math.max(0, ...classes.map((classData) => classData.discussions.length));
-
 // Maps lecture section (e.g. "0100") to instructor names.
 export const getLectureInstructors = (primaries = [], courseId) =>
   Object.fromEntries(
@@ -124,6 +127,33 @@ export const getLectureInstructors = (primaries = [], courseId) =>
         p.primary.instructors.map((i) => i.instructor).join(", "),
       ]),
   );
+
+// e.g. { days: "   R   ", beginTime: "14:00" } -> "R 2:00PM"
+export const formatMeetingTime = ({ days, beginTime }) => {
+  const [hour, minute] = beginTime.split(":").map(Number);
+  const suffix = hour < 12 ? "AM" : "PM";
+  const minutes = String(minute).padStart(2, "0");
+  return `${days.replace(/\s/g, "")} ${hour % 12 || 12}:${minutes}${suffix}`;
+};
+
+// Maps discussion section (e.g. "0101") to its meeting time.
+export const getSectionTimes = (primaries = [], courseId) =>
+  Object.fromEntries(
+    primaries
+      .filter((p) => isSameCourse(p.courseId, courseId))
+      .flatMap((p) => p.subRows)
+      .filter((section) => section.timeLocations.length > 0)
+      .map((section) => [
+        section.section,
+        formatMeetingTime(section.timeLocations[0]),
+      ]),
+  );
+
+// Bar outline with rounded top corners.
+export const roundedTopPath = (x, y, width, height) => {
+  const r = Math.min(6, width / 2, height);
+  return `M${x},${y + height} V${y + r} Q${x},${y} ${x + r},${y} H${x + width - r} Q${x + width},${y} ${x + width},${y + r} V${y + height} Z`;
+};
 
 export const hasPassData = (rows) =>
   rows.some((row) => row.pass1 != null || row.pass2 != null);

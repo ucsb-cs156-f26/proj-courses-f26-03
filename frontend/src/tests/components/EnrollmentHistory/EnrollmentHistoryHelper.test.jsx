@@ -6,7 +6,8 @@ import {
   getEnrollmentQuarters,
   getLectureSection,
   getLectureInstructors,
-  getMaxSectionCount,
+  formatMeetingTime,
+  getSectionTimes,
   hasPassData,
   getSectionBarColor,
   isLectureSection,
@@ -151,7 +152,11 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
       { lectureSection: "0300", discussions: [bar("0301")], total: null },
     ];
     const rows = createEnrollmentBarRows(classes);
-    const named = createEnrollmentBarRows(classes, { "0100": "CONRAD P T" });
+    const named = createEnrollmentBarRows(
+      classes,
+      { "0100": "CONRAD P T" },
+      { "0102": "R 3:00PM" },
+    );
 
     test("lays out discussions, Total, and a gap between classes", () => {
       expect(rows.map((r) => r.key)).toEqual([
@@ -200,6 +205,18 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
       ]);
     });
 
+    test("labels sections with their time, or their position if unknown", () => {
+      expect(named.map((r) => r.timeLabel)).toEqual([
+        "Section 1",
+        "R 3:00PM",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        "Section 1",
+      ]);
+    });
+
     test("keeps each bar's counts and class", () => {
       expect(rows[0]).toMatchObject(bar("0101"));
       expect(rows[2]).toMatchObject(bar("0100"));
@@ -220,15 +237,48 @@ describe("EnrollmentHistoryHelper bar chart helpers", () => {
     ).toBe(false);
   });
 
-  test("getMaxSectionCount returns the most discussions in any class", () => {
+  test("formatMeetingTime shows days and a 12-hour start time", () => {
+    expect(formatMeetingTime({ days: "   R   ", beginTime: "14:00" })).toBe(
+      "R 2:00PM",
+    );
+    expect(formatMeetingTime({ days: "M W    ", beginTime: "09:05" })).toBe(
+      "MW 9:05AM",
+    );
+    expect(formatMeetingTime({ days: "T", beginTime: "11:59" })).toBe(
+      "T 11:59AM",
+    );
+    expect(formatMeetingTime({ days: "F", beginTime: "12:30" })).toBe(
+      "F 12:30PM",
+    );
+    expect(formatMeetingTime({ days: "M", beginTime: "00:15" })).toBe(
+      "M 12:15AM",
+    );
+  });
+
+  test("getSectionTimes maps discussion sections to meeting times", () => {
+    const section = (code, timeLocations) => ({ section: code, timeLocations });
     expect(
-      getMaxSectionCount([
-        { discussions: [1, 2] },
-        { discussions: [1, 2, 3] },
-        { discussions: [] },
-      ]),
-    ).toBe(3);
-    expect(getMaxSectionCount()).toBe(0);
+      getSectionTimes(
+        [
+          {
+            courseId: "CMPSC   130A ",
+            subRows: [
+              section("0101", [
+                { days: "   R   ", beginTime: "14:00" },
+                { days: "    F  ", beginTime: "09:00" },
+              ]),
+              section("0102", []),
+            ],
+          },
+          {
+            courseId: "CMPSC   130AH",
+            subRows: [section("0103", [{ days: "M", beginTime: "10:00" }])],
+          },
+        ],
+        "CMPSC   130A",
+      ),
+    ).toEqual({ "0101": "R 2:00PM" });
+    expect(getSectionTimes()).toEqual({});
   });
 
   test("getLectureInstructors maps lecture sections to instructors", () => {
