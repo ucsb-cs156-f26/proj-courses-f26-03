@@ -5,9 +5,11 @@ import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
 import PersonalSchedulesTable from "main/components/PersonalSchedules/PersonalSchedulesTable";
 import { useCurrentUser } from "main/utils/currentUser";
 import { Button } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 
 export default function PersonalSchedulesIndexPage() {
   const { data: currentUser } = useCurrentUser();
+  const navigate = useNavigate();
 
   const {
     data: personalSchedules,
@@ -21,7 +23,11 @@ export default function PersonalSchedulesIndexPage() {
   );
   const createButton = () => {
     return (
-      <Button variant="primary" href="/personalschedules/create" style={{}}>
+      <Button
+        variant="primary"
+        onClick={() => navigate("/personalschedules/create")}
+        style={{}}
+      >
         Add New Personal Schedule
       </Button>
     );

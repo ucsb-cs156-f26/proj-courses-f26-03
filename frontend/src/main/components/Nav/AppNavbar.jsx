@@ -79,13 +79,18 @@ export default function AppNavbar({
             <Nav className="mr-auto">
               {hasRole(currentUser, "ROLE_USER") && (
                 <Nav.Link
-                  href="/personalschedules/list"
+                  as={Link}
+                  to="/personalschedules/list"
                   data-testid="appnavbar-personalschedules-list"
                 >
                   Personal Schedules
                 </Nav.Link>
               )}
-              <Nav.Link href="/" data-testid="appnavbar-mainsearch-list">
+              <Nav.Link
+                as={Link}
+                to="/"
+                data-testid="appnavbar-mainsearch-list"
+              >
                 Main Search
               </Nav.Link>
             </Nav>
@@ -97,31 +102,36 @@ export default function AppNavbar({
                 data-testid="appnavbar-course-infos-dropdown"
               >
                 <NavDropdown.Item
-                  href="/coursedescriptions/search"
+                  as={Link}
+                  to="/coursedescriptions/search"
                   data-testid="appnavbar-course-descriptions-search"
                 >
                   Course Descriptions
                 </NavDropdown.Item>
                 <NavDropdown.Item
-                  href="/courseovertime/search"
+                  as={Link}
+                  to="/courseovertime/search"
                   data-testid="appnavbar-course-over-time-search"
                 >
                   Course History
                 </NavDropdown.Item>
                 <NavDropdown.Item
-                  href="/courseovertime/buildingsearch/classrooms"
+                  as={Link}
+                  to="/courseovertime/buildingsearch/classrooms"
                   data-testid="appnavbar-course-over-time-buildings-search"
                 >
                   Course Location History
                 </NavDropdown.Item>
                 <NavDropdown.Item
-                  href="/courseovertime/instructorsearch"
+                  as={Link}
+                  to="/courseovertime/instructorsearch"
                   data-testid="appnavbar-course-over-time-instructor-search"
                 >
                   Search by Instructor
                 </NavDropdown.Item>
                 <NavDropdown.Item
-                  href="/generaleducation/search"
+                  as={Link}
+                  to="/generaleducation/search"
                   data-testid="appnavbar-ge-search"
                 >
                   GE Search
@@ -137,43 +147,50 @@ export default function AppNavbar({
                   data-testid="appnavbar-admin-dropdown"
                 >
                   <NavDropdown.Item
-                    href="/admin/users"
+                    as={Link}
+                    to="/admin/users"
                     data-testid="appnavbar-admin-users"
                   >
                     Users
                   </NavDropdown.Item>
                   <NavDropdown.Item
-                    href="/admin/updates"
+                    as={Link}
+                    to="/admin/updates"
                     data-testid="appnavbar-admin-updates"
                   >
                     Updates
                   </NavDropdown.Item>
                   <NavDropdown.Item
-                    href="/admin/personalschedule"
+                    as={Link}
+                    to="/admin/personalschedule"
                     data-testid="appnavbar-admin-personalschedule"
                   >
                     Personal Schedules
                   </NavDropdown.Item>
                   <NavDropdown.Item
-                    href="/admin/loadsubjects"
+                    as={Link}
+                    to="/admin/loadsubjects"
                     data-testid="appnavbar-admin-loadsubjects"
                   >
                     Load Subjects
                   </NavDropdown.Item>
                   <NavDropdown.Item
-                    href="/admin/jobs"
+                    as={Link}
+                    to="/admin/jobs"
                     data-testid="appnavbar-admin-jobs"
                   >
                     Manage Jobs
                   </NavDropdown.Item>
                   <NavDropdown.Item
-                    href="/admin/rate-limiting"
+                    as={Link}
+                    to="/admin/rate-limiting"
                     data-testid="appnavbar-admin-rate-limiting"
                   >
                     Rate Limiting
                   </NavDropdown.Item>
                   <NavDropdown.Item
-                    href="/developer"
+                    as={Link}
+                    to="/developer"
                     data-testid="appnavbar-developer"
                   >
                     Developer Info
@@ -183,7 +200,11 @@ export default function AppNavbar({
             </Nav>
 
             <Nav className="ml-auto">
-              <Nav.Link href="/downloads" data-testid="appnavbar-downloads">
+              <Nav.Link
+                as={Link}
+                to="/downloads"
+                data-testid="appnavbar-downloads"
+              >
                 Downloads
               </Nav.Link>
               {currentUser && currentUser.loggedIn ? (
