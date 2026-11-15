@@ -49,6 +49,7 @@ const AdminUsersPage = () => {
         updatePageSize={setPageSize}
       />
       <OurPagination
+        currentActivePage={selectedPage}
         updateActivePage={setSelectedPage}
         totalPages={page.totalPages}
       />
