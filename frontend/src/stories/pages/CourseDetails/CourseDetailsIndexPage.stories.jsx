@@ -11,6 +11,30 @@ import { http, HttpResponse } from "msw";
 
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { finalsFixtures } from "fixtures/finalsFixtures";
+import {
+  enrollmentBarChartFixtures,
+  enrollmentPassDatesFixtures,
+} from "fixtures/enrollmentDataPointFixtures";
+
+// Sample enrollment data relabelled as CHEM 184 in W22 and S22
+const chem184EnrollmentHistory = [
+  ...enrollmentBarChartFixtures.twoLecturesWithSections.map((dataPoint) => ({
+    ...dataPoint,
+    yyyyq: "20221",
+    courseId: "CHEM    184 -1",
+  })),
+  ...enrollmentBarChartFixtures.twoQuarters
+    .filter((dataPoint) => dataPoint.yyyyq === "20264")
+    .map((dataPoint) => ({
+      ...dataPoint,
+      yyyyq: "20222",
+      courseId: "CHEM    184 -1",
+    })),
+];
+const allQuarters = [
+  { ...enrollmentPassDatesFixtures.spring2026, quarter: "20221" },
+  { ...enrollmentPassDatesFixtures.fall2026, quarter: "20222" },
+];
 
 export default {
   title: "pages/CourseDetails/CourseDetailsIndexPage",
@@ -61,6 +85,16 @@ Default.parameters = {
     }),
     http.get("/api/public/finalsInfo", () => {
       return HttpResponse.json(finalsFixtures.cmpsc24_s26, {
+        status: 200,
+      });
+    }),
+    http.get("/api/enrollment/search", () => {
+      return HttpResponse.json(chem184EnrollmentHistory, {
+        status: 200,
+      });
+    }),
+    http.get("/api/public/allQuarters", () => {
+      return HttpResponse.json(allQuarters, {
         status: 200,
       });
     }),
