@@ -1,6 +1,5 @@
 import { Container, Row, Col } from "react-bootstrap";
 import GenericDropdown from "main/components/Utils/GenericDropdown";
-import UsersSearchBar from "main/components/Users/UsersSearchBar";
 
 const UsersSearchForm = ({
   updateSortField,
@@ -39,9 +38,6 @@ const UsersSearchForm = ({
             controlId={"UsersSearch.PageSize"}
             label="Page Size"
           />
-        </Col>
-        <Col md="auto">
-          <UsersSearchBar />
         </Col>
       </Row>
     </Container>
