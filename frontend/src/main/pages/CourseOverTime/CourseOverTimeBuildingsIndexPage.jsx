@@ -71,7 +71,7 @@ export default function CourseOverTimeBuildingsIndexPage() {
             </div>
           )}
         {!mutation.isLoading && filteredSections.length > 0 && (
-          <ConvertedSectionTable sections={filteredSections} />
+          <ConvertedSectionTable sections={filteredSections} showSession />
         )}
       </div>
     </BasicLayout>
