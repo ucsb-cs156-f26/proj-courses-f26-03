@@ -53,6 +53,7 @@ export default function EnrollmentHistoryPage() {
             <p>No courses were found with the specified criteria.</p>
           </div>
         )}
+        {selection && <EnrollmentHistoryDisplay selection={selection} />}
         {!mutation.isLoading && courseJSON.length > 0 && (
           <EnrollmentHistorySectionsTable
             sections={courseJSON}
@@ -60,7 +61,6 @@ export default function EnrollmentHistoryPage() {
             onShowEnrollmentHistory={setSelection}
           />
         )}
-        {selection && <EnrollmentHistoryDisplay selection={selection} />}
       </div>
     </BasicLayout>
   );

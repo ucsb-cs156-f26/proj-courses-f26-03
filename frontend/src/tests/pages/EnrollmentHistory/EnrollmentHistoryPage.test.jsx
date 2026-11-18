@@ -124,7 +124,7 @@ describe("EnrollmentHistoryPage tests", () => {
     ).not.toBeInTheDocument();
   });
 
-  test("shows the enrollment graph below the table when a row's button is clicked", async () => {
+  test("shows the enrollment graph when a row's button is clicked", async () => {
     axiosMock
       .onGet("/api/public/courseovertime/search")
       .reply(200, primaryFixtures.f24_math_lowerDiv);
