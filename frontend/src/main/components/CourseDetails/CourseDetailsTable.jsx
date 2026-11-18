@@ -30,7 +30,7 @@ export default function CourseDetailsTable({ details }) {
       cell: ({ cell }) =>
         formatSession(
           cell.row.original.quarter,
-          cell.row.original.classSections[0]?.session,
+          cell.row.original.classSections[0].session,
         ),
     },
     {
@@ -54,17 +54,18 @@ export default function CourseDetailsTable({ details }) {
     },
     {
       header: "Days",
+      id: "days",
       cell: ({ cell }) => {
+        // Stryker disable BlockStatement: An empty catch and returning "" render the same blank cell.
         try {
           const result =
             cell.row.original.classSections[0].timeLocations[0].days;
           return result;
         } catch {
-          // Stryker disable next-line BlockStatement : equivalent mutation of "do nothing" and return ""
           return "";
         }
+        // Stryker restore BlockStatement
       },
-      id: "days",
     },
     {
       header: "Time",
