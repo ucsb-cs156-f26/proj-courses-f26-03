@@ -30,6 +30,7 @@ vi.mock("react-router-dom", async () => {
     useParams: () => ({
       id: 17,
     }),
+    useNavigate: () => mockNavigate,
     Navigate: (x) => {
       mockNavigate(x);
       return null;
@@ -160,7 +161,7 @@ describe("PersonalSchedulesEditPage tests", () => {
 
       // Optional: Test button functionality
       await userEvent.click(backButton);
-      // Add your assertions here to ensure that clicking the button triggers the expected action.
+      expect(mockNavigate).toHaveBeenCalledWith("/personalschedules/list");
     });
 
     test("Is populated with the data provided", async () => {
