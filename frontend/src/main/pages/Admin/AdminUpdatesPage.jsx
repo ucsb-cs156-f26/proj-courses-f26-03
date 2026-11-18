@@ -59,6 +59,7 @@ export default function AdminUpdatesPage() {
         updatePageSize={setPageSize}
       />
       <OurPagination
+        currentActivePage={selectedPage}
         updateActivePage={setSelectedPage}
         totalPages={page.totalPages}
       />

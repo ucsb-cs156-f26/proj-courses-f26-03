@@ -1,5 +1,5 @@
 import { useBackend } from "main/utils/useBackend";
-import EnrollmentHistoryGraph from "main/components/EnrollmentHistory/EnrollmentHistoryGraph";
+import EnrollmentHistoryLineGraph from "main/components/EnrollmentHistory/EnrollmentHistoryLineGraph";
 import { stripLectureSuffix } from "main/components/EnrollmentHistory/EnrollmentHistoryHelper";
 
 const selectedEnrollmentLineColors = ["#0d6efd"];
@@ -75,7 +75,7 @@ export default function EnrollmentHistoryDisplay({ selection }) {
 
   return (
     <div className="mt-4">
-      <EnrollmentHistoryGraph
+      <EnrollmentHistoryLineGraph
         data={selectedEnrollmentHistory}
         lineColors={selectedEnrollmentLineColors}
         title={`Enrollment History for ${courseId.trim()} (${enrollCode})`}

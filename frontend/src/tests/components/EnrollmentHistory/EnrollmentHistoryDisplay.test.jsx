@@ -9,7 +9,7 @@ vi.mock("react-toastify", async () => {
   return { __esModule: true, ...originalModule, toast: vi.fn() };
 });
 
-vi.mock("main/components/EnrollmentHistory/EnrollmentHistoryGraph", () => ({
+vi.mock("main/components/EnrollmentHistory/EnrollmentHistoryLineGraph", () => ({
   default: ({ data, lineColors, title }) => (
     <div data-testid="enrollment-history-graph">
       <h3>{title}</h3>
