@@ -4,11 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
-import edu.ucsb.cs156.courses.collections.ConvertedSectionCollection;
 import edu.ucsb.cs156.courses.collections.UpdateCollection;
 import edu.ucsb.cs156.courses.entities.UCSBSubject;
 import edu.ucsb.cs156.courses.repositories.EnrollmentDataPointRepository;
 import edu.ucsb.cs156.courses.repositories.UCSBSubjectRepository;
+import edu.ucsb.cs156.courses.services.CourseCacheService;
 import edu.ucsb.cs156.courses.services.IsStaleService;
 import edu.ucsb.cs156.courses.services.UCSBAPIQuarterService;
 import edu.ucsb.cs156.courses.services.UCSBCurriculumService;
@@ -24,7 +24,7 @@ public class UpdateCourseDataJobFactoryTests {
 
   @MockBean UCSBCurriculumService ucsbCurriculumService;
 
-  @MockBean ConvertedSectionCollection convertedSectionCollection;
+  @MockBean CourseCacheService courseCacheService;
 
   @MockBean UCSBSubjectRepository ucsbSubjectRepository;
 
