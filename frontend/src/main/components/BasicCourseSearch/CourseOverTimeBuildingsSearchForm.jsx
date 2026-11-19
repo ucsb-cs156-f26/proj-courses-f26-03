@@ -31,7 +31,7 @@ const CourseOverTimeBuildingsSearchForm = ({ fetchJSON }) => {
   const [buildingCode, setBuildingCode] = useState(localBuildingCode || "");
   const [availableClassrooms, setAvailableClassrooms] = useState([]);
   const [classroom, setClassroom] = useState("ALL");
-  const [classroomRefresh, setClassroomRefresh] = useState(0);
+  const [classroomRefresh, setClassroomRefresh] = useState();
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -109,7 +109,7 @@ const CourseOverTimeBuildingsSearchForm = ({ fetchJSON }) => {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setClassroomRefresh((value) => value + 1)}
+              onClick={() => setClassroomRefresh((value) => !value)}
             >
               Refresh classrooms
             </Button>
