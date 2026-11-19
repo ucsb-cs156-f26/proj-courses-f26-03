@@ -1,6 +1,7 @@
 import React from "react";
 import OurTable from "main/components/OurTable";
 import { yyyyqToQyy } from "main/utils/quarterUtilities";
+import { formatSession } from "main/utils/sectionUtils.jsx";
 
 const getGeneralEducationAreas = (course) => {
   const areas = course.generalEducation;
@@ -45,6 +46,12 @@ export default function GEAreaCoursesTable({ courses }) {
       Header: "General Education Areas",
       cell: ({ row }) => getGeneralEducationAreas(row.original),
       id: "generalEducationAreas",
+    },
+    {
+      Header: "Session",
+      id: "session",
+      cell: ({ row }) =>
+        formatSession(row.original.quarter, row.original.primary?.session),
     },
   ];
 

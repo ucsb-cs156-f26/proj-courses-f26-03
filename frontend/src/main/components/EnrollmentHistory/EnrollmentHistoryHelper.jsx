@@ -1,3 +1,170 @@
+// e.g. "0101" -> "0100"
+export const getLectureSection = (section) => `${section.slice(0, 2)}00`;
+
+export const isLectureSection = (section) => section.endsWith("00");
+
+export const getEnrollmentQuarters = (data = []) =>
+  [...new Set(data.map((dataPoint) => dataPoint.yyyyq))].sort();
+
+export const getEnrollmentBefore = (snapshots, cutoff) => {
+  const before = snapshots.filter((snapshot) => snapshot.dateCreated < cutoff);
+  return before.length > 0 ? before[before.length - 1].enrollment : null;
+};
+
+// A section's latest enrollment plus its enrollment at the end of each pass.
+export const createSectionBar = (snapshots, passDates = {}) => {
+  const sorted = [...snapshots].sort((a, b) =>
+    a.dateCreated.localeCompare(b.dateCreated),
+  );
+  const latest = sorted[sorted.length - 1];
+  return {
+    section: latest.section,
+    enrollment: latest.enrollment,
+    pass1: getEnrollmentBefore(sorted, passDates.pass2Begin),
+    pass2: getEnrollmentBefore(sorted, passDates.pass3Begin),
+  };
+};
+
+// Groups one quarter's data into classes, one per lecture. The Total bar is
+// the lecture section's own enrollment, so no student is counted twice.
+export const createEnrollmentBarChartData = (
+  data = [],
+  yyyyq,
+  passDates = {},
+) => {
+  const snapshotsBySection = new Map();
+  data
+    .filter((dataPoint) => dataPoint.yyyyq === yyyyq)
+    .forEach((dataPoint) => {
+      if (!snapshotsBySection.has(dataPoint.section)) {
+        snapshotsBySection.set(dataPoint.section, []);
+      }
+      snapshotsBySection.get(dataPoint.section).push(dataPoint);
+    });
+
+  const classes = new Map();
+  [...snapshotsBySection.keys()].sort().forEach((section) => {
+    const lectureSection = getLectureSection(section);
+    if (!classes.has(lectureSection)) {
+      classes.set(lectureSection, {
+        lectureSection,
+        discussions: [],
+        total: null,
+      });
+    }
+    const bar = createSectionBar(snapshotsBySection.get(section), passDates);
+    const group = classes.get(lectureSection);
+    if (isLectureSection(section)) {
+      group.total = bar;
+    } else {
+      group.discussions.push(bar);
+    }
+  });
+  return [...classes.values()];
+};
+
+// Stryker disable all: color choices are visual styling for chart bars
+export const TOTAL_BAR_COLOR = "#4a6fa5";
+export const sectionBarColors = [
+  "#e0a15e",
+  "#6fae98",
+  "#c47f9b",
+  "#d6bf6a",
+  "#8f7db5",
+  "#7fa26c",
+  "#c77370",
+  "#9c8473",
+  "#a3a9b0",
+  "#adb067",
+];
+// Stryker restore all
+
+export const getSectionBarColor = (index) =>
+  sectionBarColors[index % sectionBarColors.length];
+
+// Flattens classes into the bars Recharts draws, with a gap between classes.
+// Section bars carry their meeting time; each class's first bar carries the
+// instructor label and bar count for centering.
+export const createEnrollmentBarRows = (
+  classes = [],
+  instructors = {},
+  sectionTimes = {},
+) => {
+  const rows = [];
+  classes.forEach((classData, classIndex) => {
+    const { lectureSection } = classData;
+    if (classIndex > 0) {
+      rows.push({ key: `gap-${lectureSection}`, isSpacer: true });
+    }
+    const classRows = classData.discussions.map((bar, index) => ({
+      ...bar,
+      key: `${lectureSection}-${bar.section}`,
+      color: getSectionBarColor(index),
+      timeLabel: sectionTimes[bar.section] || `Section ${index + 1}`,
+    }));
+    if (classData.total) {
+      classRows.push({
+        ...classData.total,
+        key: `${lectureSection}-total`,
+        color: TOTAL_BAR_COLOR,
+      });
+    }
+    classRows[0].groupLabel =
+      instructors[lectureSection] || `Lecture ${lectureSection}`;
+    classRows[0].groupSize = classRows.length;
+    rows.push(...classRows);
+  });
+  return rows;
+};
+
+// Maps lecture section (e.g. "0100") to instructor names.
+export const getLectureInstructors = (primaries = [], courseId) =>
+  Object.fromEntries(
+    primaries
+      .filter((p) => isSameCourse(p.courseId, courseId))
+      .map((p) => [
+        p.primary.section,
+        p.primary.instructors.map((i) => i.instructor).join(", "),
+      ]),
+  );
+
+// e.g. { days: "   R   ", beginTime: "14:00" } -> "R 2:00PM"
+export const formatMeetingTime = ({ days, beginTime }) => {
+  const [hour, minute] = beginTime.split(":").map(Number);
+  const suffix = hour < 12 ? "AM" : "PM";
+  const minutes = String(minute).padStart(2, "0");
+  return `${days.replace(/\s/g, "")} ${hour % 12 || 12}:${minutes}${suffix}`;
+};
+
+// Maps discussion section (e.g. "0101") to its meeting time.
+export const getSectionTimes = (primaries = [], courseId) =>
+  Object.fromEntries(
+    primaries
+      .filter((p) => isSameCourse(p.courseId, courseId))
+      .flatMap((p) => p.subRows)
+      .filter((section) => section.timeLocations.length > 0)
+      .map((section) => [
+        section.section,
+        formatMeetingTime(section.timeLocations[0]),
+      ]),
+  );
+
+// Bar outline with rounded top corners.
+export const roundedTopPath = (x, y, width, height) => {
+  const r = Math.min(6, width / 2, height);
+  return `M${x},${y + height} V${y + r} Q${x},${y} ${x + r},${y} H${x + width - r} Q${x + width},${y} ${x + width},${y + r} V${y + height} Z`;
+};
+
+export const hasPassData = (rows) =>
+  rows.some((row) => row.pass1 != null || row.pass2 != null);
+
+// Searches also return courses sharing the prefix, e.g. CMPSC 130AH for 130A.
+export const isSameCourse = (dataPointCourseId, courseId) =>
+  // Stryker disable next-line Regex : variants only differ on courseIds that don't occur
+  dataPointCourseId.replace(/\s*-\d+$/, "").trim() === courseId.trim();
+
+// Line chart helpers (Enrollment History page)
+
 // Stryker disable all: color choices are visual styling for chart series
 export const lineColors = [
   "#8884d8",
@@ -8,6 +175,10 @@ export const lineColors = [
   "#00c49f",
 ];
 // Stryker restore all
+
+// Course-over-time results append a lecture suffix (i.e. "CMPSC   130A -1")
+export const stripLectureSuffix = (courseId) =>
+  courseId?.replace(/\s*-\d+\s*$/, "");
 
 export const getEnrollmentSeriesKey = (dataPoint) =>
   `${dataPoint.enrollCd}-${dataPoint.section}`;
