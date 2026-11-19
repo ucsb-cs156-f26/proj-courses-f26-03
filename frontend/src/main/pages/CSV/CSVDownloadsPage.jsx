@@ -49,8 +49,7 @@ export default function CSVDownloadsPage({
   const [withTimeLocations, setWithTimeLocations] = useState(true);
   const [enrollmentQuarter, setEnrollmentQuarter] = useState(quarters[0].yyyyq);
   const [isEnrollmentDownloading, setIsEnrollmentDownloading] = useState(false);
-  const [hasEnrollmentDownloadError, setHasEnrollmentDownloadError] =
-    useState(false);
+  const [enrollmentDownloadError, setEnrollmentDownloadError] = useState(null);
 
   if (!quarters.some(({ yyyyq }) => yyyyq === enrollmentQuarter)) {
     setEnrollmentQuarter(quarters[0].yyyyq);
@@ -80,7 +79,7 @@ export default function CSVDownloadsPage({
 
   const handleEnrollmentDownload = async () => {
     setIsEnrollmentDownloading(true);
-    setHasEnrollmentDownloadError(false);
+    setEnrollmentDownloadError(null);
 
     try {
       const { data, headers } = await axios.get("/api/enrollment/csv/quarter", {
@@ -95,6 +94,12 @@ export default function CSVDownloadsPage({
       if (mediaType !== "text/csv") {
         throw new Error("Expected an enrollment CSV response");
       }
+      if (data.size === 0) {
+        setEnrollmentDownloadError(
+          "No enrollment data is available for the selected quarter.",
+        );
+        return;
+      }
 
       const link = document.createElement("a");
       const objectUrl = URL.createObjectURL(data);
@@ -108,7 +113,9 @@ export default function CSVDownloadsPage({
         URL.revokeObjectURL(objectUrl);
       }
     } catch {
-      setHasEnrollmentDownloadError(true);
+      setEnrollmentDownloadError(
+        "Unable to download enrollment CSV. Please try again.",
+      );
     } finally {
       setIsEnrollmentDownloading(false);
     }
@@ -230,9 +237,9 @@ export default function CSVDownloadsPage({
                   {isEnrollmentDownloading ? "Downloading..." : "Download CSV"}
                 </Button>
               </Form>
-              {hasEnrollmentDownloadError && (
+              {enrollmentDownloadError && (
                 <Alert variant="danger" className="mt-3 mb-0">
-                  Unable to download enrollment CSV. Please try again.
+                  {enrollmentDownloadError}
                 </Alert>
               )}
             </Accordion.Body>

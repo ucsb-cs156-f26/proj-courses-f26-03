@@ -263,32 +263,51 @@ describe("CSVDownloadsPage tests", () => {
     expect(reply).toHaveBeenCalledTimes(1);
   });
 
-  test("clears the enrollment download error and downloads the CSV on retry", async () => {
-    const csv = new Blob(["yyyyq,enrollment\n20241,96\n"], {
-      type: "text/csv",
-    });
-    axiosMock
-      .onGet(enrollmentEndpoint)
-      .replyOnce(500)
-      .onGet(enrollmentEndpoint)
-      .reply(200, csv, enrollmentCsvHeaders);
-    const { createObjectURL, click } = mockEnrollmentDownload();
-    const enrollmentForm = openEnrollmentForm();
-    const button = enrollmentForm.getByRole("button", { name: "Download CSV" });
+  test.each([
+    {
+      scenario: "an HTTP 500",
+      response: [500],
+      message: enrollmentError,
+    },
+    {
+      scenario: "an empty CSV",
+      response: [200, new Blob([], { type: "text/csv" }), enrollmentCsvHeaders],
+      message: "No enrollment data is available for the selected quarter.",
+    },
+  ])(
+    "downloads the CSV on retry after $scenario",
+    async ({ response, message }) => {
+      const csv = new Blob(["yyyyq,enrollment\n20241,96\n"], {
+        type: "text/csv",
+      });
+      axiosMock
+        .onGet(enrollmentEndpoint)
+        .replyOnce(...response)
+        .onGet(enrollmentEndpoint)
+        .reply(200, csv, enrollmentCsvHeaders);
+      const { createObjectURL, click } = mockEnrollmentDownload();
+      const enrollmentForm = openEnrollmentForm();
+      const button = enrollmentForm.getByRole("button", {
+        name: "Download CSV",
+      });
 
-    fireEvent.click(button);
-    expect(await screen.findByRole("alert")).toHaveTextContent(enrollmentError);
+      fireEvent.click(button);
+      expect(await screen.findByRole("alert")).toHaveTextContent(message);
+      expect(button).toBeEnabled();
+      expect(createObjectURL).not.toHaveBeenCalled();
+      expect(click).not.toHaveBeenCalled();
 
-    fireEvent.click(button);
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      fireEvent.click(button);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
-    expect(
-      await enrollmentForm.findByRole("button", { name: "Download CSV" }),
-    ).toBeEnabled();
-    expect(createObjectURL).toHaveBeenCalledExactlyOnceWith(csv);
-    expect(click).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
+      expect(
+        await enrollmentForm.findByRole("button", { name: "Download CSV" }),
+      ).toBeEnabled();
+      expect(createObjectURL).toHaveBeenCalledExactlyOnceWith(csv);
+      expect(click).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    },
+  );
 
   const deferSystemInfo = () => {
     const { promise, resolve } = Promise.withResolvers();
