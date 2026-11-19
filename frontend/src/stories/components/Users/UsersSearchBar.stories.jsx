@@ -10,4 +10,8 @@ const Template = (args) => {
 };
 
 export const Default = Template.bind({});
-Default.args = {};
+Default.args = {
+  updateSearch: (s) => {
+    console.log(`updateSearch: ${s}`);
+  },
+};
