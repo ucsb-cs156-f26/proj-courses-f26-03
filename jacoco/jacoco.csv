@@ -36,7 +36,7 @@ courses,edu.ucsb.cs156.courses.jobs,UpdateCourseDataJobFactory,0,125,0,2,0,16,0,
 courses,edu.ucsb.cs156.courses.jobs,UploadGradeDataJobFactory,0,11,0,0,0,2,0,2,0,2
 courses,edu.ucsb.cs156.courses.jobs,UploadGradeDataJob,0,13,0,0,0,4,0,1,0,1
 courses,edu.ucsb.cs156.courses.jobs,TestJob,0,19,0,2,0,6,0,2,0,1
-courses,edu.ucsb.cs156.courses.jobs,UpdateCourseDataJob,0,232,0,14,0,57,0,11,0,4
+courses,edu.ucsb.cs156.courses.jobs,UpdateCourseDataJob,0,275,0,22,0,64,0,15,0,4
 courses,edu.ucsb.cs156.courses.errors,EntityNotFoundException,0,47,0,0,0,8,0,2,0,2
 courses,edu.ucsb.cs156.courses.errors,BadEnrollCdException,0,12,0,0,0,3,0,1,0,1
 courses,edu.ucsb.cs156.courses.entities,GradeHistory,0,23,0,4,0,4,0,4,0,2
@@ -57,9 +57,10 @@ courses,edu.ucsb.cs156.courses.services,SectionCSVLineService,0,13,0,0,0,3,0,3,0
 courses,edu.ucsb.cs156.courses.services,UCSBAPIQuarterService,0,592,0,52,0,140,0,50,0,24
 courses,edu.ucsb.cs156.courses.services,EnrollmentCSVService,0,20,0,2,0,5,0,4,0,3
 courses,edu.ucsb.cs156.courses.services,UCSBSubjectsService.new TypeReference() {...},0,8,0,0,0,1,0,1,0,1
+courses,edu.ucsb.cs156.courses.services,CourseCacheService,0,101,0,12,0,31,0,9,0,3
 courses,edu.ucsb.cs156.courses.services,UpdateService,0,38,0,2,0,9,0,3,0,2
 courses,edu.ucsb.cs156.courses.services,GradeHistoryImportServiceImpl.NullHeaderException,0,4,0,0,0,2,0,1,0,1
-courses,edu.ucsb.cs156.courses.services,UCSBCurriculumService,0,921,0,6,0,185,0,19,0,16
+courses,edu.ucsb.cs156.courses.services,UCSBCurriculumService,0,969,0,10,0,194,0,21,0,16
 courses,edu.ucsb.cs156.courses.services,SystemMessagesService,0,23,0,0,0,5,0,3,0,3
 courses,edu.ucsb.cs156.courses.utilities,CourseUtilities,0,86,0,7,0,18,0,7,0,2
 courses,edu.ucsb.cs156.courses.filters,RateLimitFilter,0,128,0,8,0,38,0,9,0,5
