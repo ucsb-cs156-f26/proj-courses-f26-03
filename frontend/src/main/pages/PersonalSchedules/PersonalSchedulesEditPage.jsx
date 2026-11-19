@@ -1,15 +1,19 @@
 import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
-import { useParams } from "react-router-dom";
 import PersonalScheduleForm from "main/components/PersonalSchedules/PersonalScheduleForm";
-import { Navigate } from "react-router-dom";
 import { useBackend, useBackendMutation } from "main/utils/useBackend";
 import { Button } from "react-bootstrap";
 import { toast } from "react-toastify";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
 
 export default function PersonalSchedulesEditPage() {
+  const navigate = useNavigate();
   const createButton = () => {
     return (
-      <Button variant="primary" href="/personalschedules/list" style={{}}>
+      <Button
+        variant="primary"
+        onClick={() => navigate("/personalschedules/list")}
+        style={{}}
+      >
         Back
       </Button>
     );
