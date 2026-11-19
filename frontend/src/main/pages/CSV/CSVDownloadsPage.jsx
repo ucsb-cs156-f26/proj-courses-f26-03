@@ -86,13 +86,12 @@ export default function CSVDownloadsPage({
         params: { yyyyq: enrollmentQuarter },
         responseType: "blob",
       });
-      const mediaType = headers
-        .get("content-type")
-        ?.split(";")[0]
+      const mediaType = String(headers.get("content-type"))
+        .split(";")[0]
         .trim()
         .toLowerCase();
       if (mediaType !== "text/csv") {
-        throw new Error("Expected an enrollment CSV response");
+        throw new Error();
       }
       if (data.size === 0) {
         setEnrollmentDownloadError(

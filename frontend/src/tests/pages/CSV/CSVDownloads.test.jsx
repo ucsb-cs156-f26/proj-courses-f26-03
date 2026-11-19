@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -62,9 +63,10 @@ describe("CSVDownloadsPage tests", () => {
     vi.unstubAllGlobals();
   });
 
-  const renderPage = (browserLocation = window.location) => {
-    const queryClient = new QueryClient();
-
+  const renderPage = (
+    browserLocation = window.location,
+    queryClient = new QueryClient(),
+  ) => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
@@ -83,7 +85,7 @@ describe("CSVDownloadsPage tests", () => {
   };
 
   const enrollmentEndpoint = "/api/enrollment/csv/quarter";
-  const enrollmentCsvHeaders = { "Content-Type": "text/csv;charset=UTF-8" };
+  const enrollmentCsvHeaders = { "Content-Type": "text/csv ; charset=UTF-8" };
   const enrollmentError =
     "Unable to download enrollment CSV. Please try again.";
 
@@ -105,8 +107,8 @@ describe("CSVDownloadsPage tests", () => {
     return { objectUrl, createObjectURL, revokeObjectURL, click };
   };
 
-  const openEnrollmentForm = () => {
-    renderPage();
+  const openEnrollmentForm = (queryClient) => {
+    renderPage(undefined, queryClient);
     fireEvent.click(
       screen.getByRole("button", { name: "Enrollment Downloads" }),
     );
@@ -404,6 +406,43 @@ describe("CSVDownloadsPage tests", () => {
     expect(
       enrollmentForm.getByRole("combobox", { name: "Quarter" }),
     ).toHaveValue("20231");
+    await expectDownloadForDisplayedQuarter(enrollmentForm);
+  });
+
+  test("keeps the replacement enrollment quarter when the previous choice becomes available again", async () => {
+    const queryClient = new QueryClient();
+    const enrollmentForm = openEnrollmentForm(queryClient);
+    await enrollmentForm.findByRole("option", { name: "S24" });
+    fireEvent.change(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+      {
+        target: { value: "20242" },
+      },
+    );
+
+    act(() => {
+      queryClient.setQueryData("systemInfo", {
+        ...systemInfoFixtures.showingNeither,
+        startQtrYYYYQ: "20244",
+        endQtrYYYYQ: "20251",
+      });
+    });
+    await enrollmentForm.findByRole("option", { name: "F24" });
+    expect(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+    ).toHaveValue("20244");
+
+    act(() => {
+      queryClient.setQueryData("systemInfo", {
+        ...systemInfoFixtures.showingNeither,
+        startQtrYYYYQ: "20241",
+        endQtrYYYYQ: "20251",
+      });
+    });
+    await enrollmentForm.findByRole("option", { name: "S24" });
+    expect(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+    ).toHaveValue("20244");
     await expectDownloadForDisplayedQuarter(enrollmentForm);
   });
 
