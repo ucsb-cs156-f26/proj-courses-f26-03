@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import axios from "axios";
 import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
-import { Accordion, Form, Button } from "react-bootstrap";
+import { Accordion, Alert, Form, Button } from "react-bootstrap";
 import SingleQuarterDropdown from "main/components/Quarters/SingleQuarterDropdown";
 import SingleSubjectDropdown from "main/components/Subjects/SingleSubjectDropdown";
 import SingleLevelDropdown from "main/components/Levels/SingleLevelDropdown";
@@ -46,6 +47,14 @@ export default function CSVDownloadsPage({
   const [level, setLevel] = useState("U");
   const [omitSections, setOmitSections] = useState(true);
   const [withTimeLocations, setWithTimeLocations] = useState(true);
+  const [enrollmentQuarter, setEnrollmentQuarter] = useState(quarters[0].yyyyq);
+  const [isEnrollmentDownloading, setIsEnrollmentDownloading] = useState(false);
+  const [hasEnrollmentDownloadError, setHasEnrollmentDownloadError] =
+    useState(false);
+
+  if (!quarters.some(({ yyyyq }) => yyyyq === enrollmentQuarter)) {
+    setEnrollmentQuarter(quarters[0].yyyyq);
+  }
 
   const byQuarterUrl = `/api/courses/csv/quarter?yyyyq=${encodeURIComponent(quarter)}`;
   const byQuarterAndSubjectUrl =
@@ -67,6 +76,42 @@ export default function CSVDownloadsPage({
   const handleQuarterSubjectSubmit = (e) => {
     e.preventDefault();
     downloadCsv(byQuarterAndSubjectUrl);
+  };
+
+  const handleEnrollmentDownload = async () => {
+    setIsEnrollmentDownloading(true);
+    setHasEnrollmentDownloadError(false);
+
+    try {
+      const { data, headers } = await axios.get("/api/enrollment/csv/quarter", {
+        params: { yyyyq: enrollmentQuarter },
+        responseType: "blob",
+      });
+      const mediaType = headers
+        .get("content-type")
+        ?.split(";")[0]
+        .trim()
+        .toLowerCase();
+      if (mediaType !== "text/csv") {
+        throw new Error("Expected an enrollment CSV response");
+      }
+
+      const link = document.createElement("a");
+      const objectUrl = URL.createObjectURL(data);
+      try {
+        link.href = objectUrl;
+        link.download = `enrollment_${enrollmentQuarter}.csv`;
+        document.body.appendChild(link);
+        link.click();
+      } finally {
+        link.remove();
+        URL.revokeObjectURL(objectUrl);
+      }
+    } catch {
+      setHasEnrollmentDownloadError(true);
+    } finally {
+      setIsEnrollmentDownloading(false);
+    }
   };
 
   return (
@@ -160,6 +205,36 @@ export default function CSVDownloadsPage({
                   Download CSV
                 </Button>
               </Form>
+            </Accordion.Body>
+          </Accordion.Item>
+          <Accordion.Item eventKey="enrollment-downloads">
+            <Accordion.Header>Enrollment Downloads</Accordion.Header>
+            <Accordion.Body>
+              <Form>
+                <div className="mb-3">
+                  <SingleQuarterDropdown
+                    quarters={quarters}
+                    key={`${startQtr}-${endQtr}`}
+                    quarter={enrollmentQuarter}
+                    setQuarter={setEnrollmentQuarter}
+                    controlId="CSVDownloads.EnrollmentQuarter"
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={handleEnrollmentDownload}
+                  disabled={isEnrollmentDownloading}
+                >
+                  {isEnrollmentDownloading ? "Downloading..." : "Download CSV"}
+                </Button>
+              </Form>
+              {hasEnrollmentDownloadError && (
+                <Alert variant="danger" className="mt-3 mb-0">
+                  Unable to download enrollment CSV. Please try again.
+                </Alert>
+              )}
             </Accordion.Body>
           </Accordion.Item>
         </Accordion>
