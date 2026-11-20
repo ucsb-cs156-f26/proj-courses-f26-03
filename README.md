@@ -1,4 +1,4 @@
-# proj-courses
+# proj-courses-f26-03
 
 ### Sprint Planning Doc: 
 - <https://docs.google.com/document/d/1_6yE7yOBh4hRHPr4JbERSBSjDdJ2BI8Cbk99hbCmxDo/edit?usp=sharing>
@@ -17,8 +17,8 @@ so that it can be merged into the <https://github.com/ucsb-cs156/proj-courses/> 
 
 | Type | Link       | 
 |------|------------|
-| prod | <https://courses.dokku-00.cs.ucsb.edu/> | 
-| qa | <https://courses-qa.dokku-00.cs.ucsb.edu/>  | 
+| prod | <https://proj-courses.dokku-03.cs.ucsb.edu/> | 
+| qa | <https://proj-courses-qa.dokku-03.cs.ucsb.edu/>  | 
 
 
 # Setup before running application
