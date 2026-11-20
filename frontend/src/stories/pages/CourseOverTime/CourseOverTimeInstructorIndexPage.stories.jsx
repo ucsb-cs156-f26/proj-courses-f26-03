@@ -1,7 +1,7 @@
 import React from "react";
 
 import CourseOverTimeInstructorIndexPage from "main/pages/CourseOverTime/CourseOverTimeInstructorIndexPage";
-import { threeSections } from "fixtures/sectionFixtures";
+import primaryFixtures from "fixtures/primaryFixtures";
 import { systemInfoFixtures } from "fixtures/systemInfoFixtures";
 import { ucsbSubjectsFixtures } from "fixtures/ucsbSubjectsFixtures";
 import { apiCurrentUserFixtures } from "fixtures/currentUserFixtures";
@@ -26,7 +26,7 @@ Default.parameters = {
     }),
     http.get("/api/public/courseovertime/instructorsearch", ({ request }) => {
       toast(`Generated: ${request.method} ${request.url}`);
-      return HttpResponse.json(threeSections, {
+      return HttpResponse.json(primaryFixtures.f24_math_lowerDiv, {
         status: 200,
       });
     }),

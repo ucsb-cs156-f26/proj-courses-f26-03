@@ -4,10 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsb.cs156.courses.collections.ConvertedSectionCollection;
 import edu.ucsb.cs156.courses.documents.ConvertedSection;
+import edu.ucsb.cs156.courses.documents.Primary;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -57,20 +60,34 @@ public class CourseOverTimeInstructorController {
           @RequestParam
           boolean lectureOnly)
       throws JsonProcessingException {
-    List<ConvertedSection> courseResults;
-    if (lectureOnly) {
-      courseResults =
-          new ArrayList<>(
-              convertedSectionCollection.findByQuarterRangeAndInstructor(
-                  startQtr, endQtr, "^" + instructor.toUpperCase(), "^(Teaching and in charge)"));
-    } else {
-      courseResults =
-          new ArrayList<>(
-              convertedSectionCollection.findByQuarterRangeAndInstructor(
-                  startQtr, endQtr, "^" + instructor.toUpperCase(), "^.*"));
-    }
-    courseResults.sort(new ConvertedSection.ConvertedSectionSortDescendingByQuarterComparator());
-    String body = mapper.writeValueAsString(courseResults);
+    String functionCode = lectureOnly ? "^(Teaching and in charge)" : "^.*";
+    List<ConvertedSection> matches =
+        convertedSectionCollection.findByQuarterRangeAndInstructor(
+            startQtr, endQtr, "^" + instructor.toUpperCase(), functionCode);
+
+    // Discussion sections usually list only TAs, so they rarely match the instructor themselves.
+    // Fetch every section of the matched courses, group them under their lectures, and keep
+    // the lectures where the instructor teaches the lecture or one of its sections.
+    Set<String> matchedSections =
+        matches.stream()
+            .map(cs -> cs.getCourseInfo().getQuarter() + cs.getSection().getEnrollCode())
+            .collect(Collectors.toSet());
+    List<String> courseIds =
+        matches.stream().map(cs -> cs.getCourseInfo().getCourseId()).distinct().toList();
+
+    List<Primary> primaries =
+        Primary.fromConvertedSections(
+                convertedSectionCollection.findByQuarterRangeAndCourseIdIn(
+                    startQtr, endQtr, courseIds))
+            .stream()
+            .filter(
+                p ->
+                    Stream.concat(Stream.of(p.getPrimary()), p.getSubRows().stream())
+                        .anyMatch(
+                            s -> matchedSections.contains(p.getQuarter() + s.getEnrollCode())))
+            .toList();
+
+    String body = mapper.writeValueAsString(primaries);
     return ResponseEntity.ok().body(body);
   }
 }
