@@ -36,6 +36,9 @@ public class UCSBCurriculumServiceTests {
 
   @Mock private RestTemplate restTemplate;
 
+  @org.springframework.test.context.bean.override.mockito.MockitoBean
+  private CourseCacheService courseCacheService;
+
   @Autowired private UCSBCurriculumService ucs;
 
   @Test
@@ -415,6 +418,95 @@ public class UCSBCurriculumServiceTests {
 
     List<Primary> result = ucs.getPrimaries(subjectArea, quarter, level);
     assertEquals(expectedConvertedPrimaries, result);
+    org.mockito.Mockito.verify(courseCacheService, org.mockito.Mockito.times(14))
+        .upsertSection(org.mockito.ArgumentMatchers.any());
+    org.mockito.Mockito.verify(courseCacheService).prepareIndex();
+    for (ConvertedSection section : expectedCoursePage.convertedSections()) {
+      org.mockito.Mockito.verify(courseCacheService).upsertSection(section);
+    }
+    mockRestServiceServer.verify();
+  }
+
+  @Test
+  public void test_getPrimaries_returns_live_results_when_cache_fails() throws Exception {
+    String json = CoursePageFixtures.COURSE_PAGE_JSON_MATH3B;
+    String url =
+        apiHost
+            + "/academics/curriculums/v1/classes/search"
+            + "?quarter=20222&subjectCode=MATH&objLevelCode=U&pageNumber=1&pageSize=100&includeClassSections=true";
+    mockRestServiceServer
+        .expect(requestTo(url))
+        .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+    org.mockito.Mockito.when(courseCacheService.upsertSection(org.mockito.ArgumentMatchers.any()))
+        .thenThrow(
+            new org.springframework.dao.DataAccessResourceFailureException("Mongo unavailable"));
+
+    assertEquals(CoursePage.fromJSON(json).getPrimaries(), ucs.getPrimaries("MATH", "20222", "U"));
+    mockRestServiceServer.verify();
+  }
+
+  @Test
+  public void test_index_failure_is_nonfatal_and_later_search_retries_preparation()
+      throws Exception {
+    String json = CoursePageFixtures.COURSE_PAGE_JSON_MATH3B;
+    String url =
+        apiHost
+            + "/academics/curriculums/v1/classes/search"
+            + "?quarter=20222&subjectCode=MATH&objLevelCode=U&pageNumber=1&pageSize=100&includeClassSections=true";
+    mockRestServiceServer
+        .expect(org.springframework.test.web.client.ExpectedCount.twice(), requestTo(url))
+        .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+    org.mockito.Mockito.doThrow(
+            new org.springframework.dao.DuplicateKeyException("existing duplicates"))
+        .doNothing()
+        .when(courseCacheService)
+        .prepareIndex();
+    List<Primary> expected = CoursePage.fromJSON(json).getPrimaries();
+
+    assertEquals(expected, ucs.getPrimaries("MATH", "20222", "U"));
+    org.mockito.Mockito.verify(courseCacheService).prepareIndex();
+    org.mockito.Mockito.verify(courseCacheService, org.mockito.Mockito.never())
+        .upsertSection(org.mockito.ArgumentMatchers.any());
+
+    assertEquals(expected, ucs.getPrimaries("MATH", "20222", "U"));
+    org.mockito.Mockito.verify(courseCacheService, org.mockito.Mockito.times(2)).prepareIndex();
+    org.mockito.Mockito.verify(courseCacheService, org.mockito.Mockito.times(14))
+        .upsertSection(org.mockito.ArgumentMatchers.any());
+    mockRestServiceServer.verify();
+  }
+
+  @Test
+  public void test_getPrimaries_empty_response_does_not_write_cache() throws Exception {
+    String url =
+        apiHost
+            + "/academics/curriculums/v1/classes/search"
+            + "?quarter=20222&subjectCode=MATH&pageNumber=1&pageSize=100&includeClassSections=true";
+    mockRestServiceServer
+        .expect(requestTo(url))
+        .andRespond(
+            withSuccess(
+                "{\"pageNumber\":1,\"pageSize\":100,\"total\":0,\"classes\":[]}",
+                MediaType.APPLICATION_JSON));
+    assertEquals(List.of(), ucs.getPrimaries("MATH", "20222", "A"));
+    org.mockito.Mockito.verifyNoInteractions(courseCacheService);
+    mockRestServiceServer.verify();
+  }
+
+  @Test
+  public void test_getPrimaries_upstream_failure_does_not_write_cache() {
+    String url =
+        apiHost
+            + "/academics/curriculums/v1/classes/search"
+            + "?quarter=20222&subjectCode=MATH&pageNumber=1&pageSize=100&includeClassSections=true";
+    mockRestServiceServer
+        .expect(requestTo(url))
+        .andRespond(
+            org.springframework.test.web.client.response.MockRestResponseCreators
+                .withServerError());
+    org.junit.jupiter.api.Assertions.assertThrows(
+        org.springframework.web.client.HttpServerErrorException.class,
+        () -> ucs.getPrimaries("MATH", "20222", "A"));
+    org.mockito.Mockito.verifyNoInteractions(courseCacheService);
   }
 
   @Test

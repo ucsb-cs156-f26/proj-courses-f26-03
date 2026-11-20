@@ -5,6 +5,7 @@ import {
   formatInstructors,
   formatLocation,
   formatTime,
+  formatSession,
 } from "main/utils/sectionUtils.jsx";
 
 export default function CourseDetailsTable({ details }) {
@@ -22,6 +23,15 @@ export default function CourseDetailsTable({ details }) {
       header: "Section",
       id: "section",
       cell: ({ cell }) => cell.row.original.classSections[0].section,
+    },
+    {
+      header: "Session",
+      id: "session",
+      cell: ({ cell }) =>
+        formatSession(
+          cell.row.original.quarter,
+          cell.row.original.classSections[0].session,
+        ),
     },
     {
       header: "Title",
@@ -44,17 +54,18 @@ export default function CourseDetailsTable({ details }) {
     },
     {
       header: "Days",
+      id: "days",
       cell: ({ cell }) => {
+        // Stryker disable BlockStatement: An empty catch and returning "" render the same blank cell.
         try {
           const result =
             cell.row.original.classSections[0].timeLocations[0].days;
           return result;
         } catch {
-          // Stryker disable next-line BlockStatement : equivalent mutation of "do nothing" and return ""
           return "";
         }
+        // Stryker restore BlockStatement
       },
-      id: "days",
     },
     {
       header: "Time",
