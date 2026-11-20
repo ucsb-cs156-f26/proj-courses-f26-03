@@ -1,4 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import axios from "axios";
 import AxiosMockAdapter from "axios-mock-adapter";
 import { QueryClient, QueryClientProvider } from "react-query";
@@ -53,11 +60,14 @@ describe("CSVDownloadsPage tests", () => {
 
   afterEach(() => {
     axiosMock.restore();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  const renderPage = (browserLocation = window.location) => {
-    const queryClient = new QueryClient();
-
+  const renderPage = (
+    browserLocation = window.location,
+    queryClient = new QueryClient(),
+  ) => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
@@ -75,9 +85,50 @@ describe("CSVDownloadsPage tests", () => {
     };
   };
 
-  test.each([0, 1])(
-    "download form %i waits for availability before navigating",
-    async (formIndex) => {
+  const enrollmentEndpoint = "/api/enrollment/csv/quarter";
+  const enrollmentCsvHeaders = { "Content-Type": "text/csv ; charset=UTF-8" };
+  const enrollmentError =
+    "Unable to download enrollment CSV. Please try again.";
+
+  const mockEnrollmentDownload = () => {
+    const objectUrl = "blob:enrollment-csv";
+    const createObjectURL = vi.fn().mockReturnValue(objectUrl);
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal(
+      "URL",
+      Object.assign(class extends URL {}, {
+        createObjectURL,
+        revokeObjectURL,
+      }),
+    );
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    return { objectUrl, createObjectURL, revokeObjectURL, click };
+  };
+
+  const openEnrollmentForm = (queryClient) => {
+    renderPage(undefined, queryClient);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enrollment Downloads" }),
+    );
+
+    return within(
+      screen.getByTestId("CSVDownloads.EnrollmentQuarter").closest("form"),
+    );
+  };
+
+  const courseQuarterIds = [
+    "CSVDownloads.Quarter",
+    "CSVDownloads.SubjectQuarter",
+  ];
+  const getCourseForm = (quarterId) =>
+    screen.getByTestId(quarterId).closest("form");
+
+  test.each(courseQuarterIds)(
+    "download form %s waits for availability before navigating",
+    async (quarterId) => {
       let finishAvailability;
       axiosMock.onPost("/api/public/course-data/ensure").reply(
         () =>
@@ -87,10 +138,12 @@ describe("CSVDownloadsPage tests", () => {
       );
       const { assignMock, browserLocation } = mockLocationAssign();
       renderPage(browserLocation);
-      const buttons = await screen.findAllByRole("button", {
-        name: "Download CSV",
-      });
-      fireEvent.submit(buttons[formIndex].closest("form"));
+      const buttons = courseQuarterIds.map((id) =>
+        within(getCourseForm(id)).getByText("Download CSV", {
+          selector: "button",
+        }),
+      );
+      fireEvent.submit(getCourseForm(quarterId));
       await waitFor(() => expect(finishAvailability).toBeTypeOf("function"));
       expect(assignMock).not.toHaveBeenCalled();
       await waitFor(() =>
@@ -104,16 +157,13 @@ describe("CSVDownloadsPage tests", () => {
     },
   );
 
-  test.each([0, 1])(
-    "download form %i still downloads existing data on scheduling failure",
-    async (formIndex) => {
+  test.each(courseQuarterIds)(
+    "download form %s still downloads existing data on scheduling failure",
+    async (quarterId) => {
       axiosMock.onPost("/api/public/course-data/ensure").networkError();
       const { assignMock, browserLocation } = mockLocationAssign();
       renderPage(browserLocation);
-      const buttons = await screen.findAllByRole("button", {
-        name: "Download CSV",
-      });
-      fireEvent.submit(buttons[formIndex].closest("form"));
+      fireEvent.submit(getCourseForm(quarterId));
       await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "Could not check course data availability or schedule an update",
@@ -130,17 +180,354 @@ describe("CSVDownloadsPage tests", () => {
     expect(await screen.findByText("CSV Downloads")).toBeInTheDocument();
   });
 
+  test("shows a quarter selector in the Enrollment Downloads accordion", () => {
+    renderPage();
+
+    const accordionButton = screen.getByRole("button", {
+      name: "Enrollment Downloads",
+    });
+    fireEvent.click(accordionButton);
+
+    expect(accordionButton).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("CSVDownloads.EnrollmentQuarter")).toBeVisible();
+  });
+
+  test("downloads an enrollment CSV Blob for the selected quarter and cleans up", async () => {
+    const csv = new Blob(["yyyyq,enrollment\n20242,96\n"], {
+      type: "text/csv",
+    });
+    axiosMock.onGet(enrollmentEndpoint).reply(200, csv, enrollmentCsvHeaders);
+
+    const { objectUrl, createObjectURL, revokeObjectURL, click } =
+      mockEnrollmentDownload();
+    const enrollmentForm = openEnrollmentForm();
+    await enrollmentForm.findByRole("option", { name: "S24" });
+    fireEvent.change(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+      {
+        target: { value: "20242" },
+      },
+    );
+    fireEvent.click(
+      enrollmentForm.getByRole("button", { name: "Download CSV" }),
+    );
+
+    await waitFor(() => expect(click).toHaveBeenCalledTimes(1));
+
+    const requests = axiosMock.history.get.filter(
+      ({ url }) => url === enrollmentEndpoint,
+    );
+    expect(requests).toHaveLength(1);
+    expect(requests[0].params).toEqual({ yyyyq: "20242" });
+    expect(requests[0].responseType).toBe("blob");
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(createObjectURL.mock.calls[0][0]).toBe(csv);
+
+    const link = click.mock.contexts[0];
+    expect(link).toHaveAttribute("href", objectUrl);
+    expect(link).toHaveAttribute("download", "enrollment_20242.csv");
+    expect(link).not.toBeInTheDocument();
+    expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith(objectUrl);
+  });
+
+  test("shows an enrollment download error after an HTTP 500", async () => {
+    axiosMock.onGet(enrollmentEndpoint).reply(500);
+    const { createObjectURL, click } = mockEnrollmentDownload();
+    const enrollmentForm = openEnrollmentForm();
+    const button = enrollmentForm.getByRole("button", { name: "Download CSV" });
+
+    fireEvent.click(button);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(enrollmentError);
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(click).not.toHaveBeenCalled();
+    expect(button).toHaveAccessibleName("Download CSV");
+    expect(button).toBeEnabled();
+  });
+
+  test.each([
+    [
+      "HTML",
+      "<html>Downloads</html>",
+      { "Content-Type": "text/html; charset=UTF-8" },
+    ],
+    [
+      "JSON",
+      '{"message":"Unexpected response"}',
+      { "Content-Type": "application/json" },
+    ],
+    ["untyped", "Unexpected response", {}],
+  ])(
+    "rejects an HTTP 200 %s response instead of downloading it",
+    async (_, body, headers) => {
+      axiosMock.onGet(enrollmentEndpoint).reply(200, new Blob([body]), headers);
+      const { createObjectURL, click } = mockEnrollmentDownload();
+      const enrollmentForm = openEnrollmentForm();
+      const button = enrollmentForm.getByRole("button", {
+        name: "Download CSV",
+      });
+
+      fireEvent.click(button);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        enrollmentError,
+      );
+      expect(createObjectURL).not.toHaveBeenCalled();
+      expect(click).not.toHaveBeenCalled();
+      expect(button).toHaveAccessibleName("Download CSV");
+      expect(button).toBeEnabled();
+    },
+  );
+
+  test("shows an enrollment download error and allows retry after a network failure", async () => {
+    axiosMock.onGet(enrollmentEndpoint).networkError();
+    const { createObjectURL, click } = mockEnrollmentDownload();
+    const enrollmentForm = openEnrollmentForm();
+    const button = enrollmentForm.getByRole("button", { name: "Download CSV" });
+
+    fireEvent.click(button);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(enrollmentError);
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(click).not.toHaveBeenCalled();
+    expect(button).toHaveAccessibleName("Download CSV");
+    expect(button).toBeEnabled();
+  });
+
+  test("disables enrollment download and prevents repeat requests while pending", async () => {
+    const { promise, resolve } = Promise.withResolvers();
+    const reply = vi.fn(() => promise);
+    axiosMock.onGet(enrollmentEndpoint).reply(reply);
+    const { click } = mockEnrollmentDownload();
+    const enrollmentForm = openEnrollmentForm();
+    const button = enrollmentForm.getByRole("button", { name: "Download CSV" });
+
+    fireEvent.click(button);
+    expect(button).toHaveAccessibleName("Downloading...");
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(reply).toHaveBeenCalledTimes(1);
+
+    resolve([
+      200,
+      new Blob(["yyyyq,enrollment\n20241,96\n"], { type: "text/csv" }),
+      enrollmentCsvHeaders,
+    ]);
+
+    expect(
+      await enrollmentForm.findByRole("button", { name: "Download CSV" }),
+    ).toBeEnabled();
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(reply).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([
+    {
+      scenario: "an HTTP 500",
+      response: [500],
+      message: enrollmentError,
+    },
+    {
+      scenario: "an empty CSV",
+      response: [200, new Blob([], { type: "text/csv" }), enrollmentCsvHeaders],
+      message: "No enrollment data is available for the selected quarter.",
+    },
+  ])(
+    "downloads the CSV on retry after $scenario",
+    async ({ response, message }) => {
+      const csv = new Blob(["yyyyq,enrollment\n20241,96\n"], {
+        type: "text/csv",
+      });
+      axiosMock
+        .onGet(enrollmentEndpoint)
+        .replyOnce(...response)
+        .onGet(enrollmentEndpoint)
+        .reply(200, csv, enrollmentCsvHeaders);
+      const { createObjectURL, click } = mockEnrollmentDownload();
+      const enrollmentForm = openEnrollmentForm();
+      const button = enrollmentForm.getByRole("button", {
+        name: "Download CSV",
+      });
+
+      fireEvent.click(button);
+      expect(await screen.findByRole("alert")).toHaveTextContent(message);
+      expect(button).toBeEnabled();
+      expect(createObjectURL).not.toHaveBeenCalled();
+      expect(click).not.toHaveBeenCalled();
+
+      fireEvent.click(button);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+      expect(
+        await enrollmentForm.findByRole("button", { name: "Download CSV" }),
+      ).toBeEnabled();
+      expect(createObjectURL).toHaveBeenCalledExactlyOnceWith(csv);
+      expect(click).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    },
+  );
+
+  const deferSystemInfo = () => {
+    const { promise, resolve } = Promise.withResolvers();
+    axiosMock.onGet("/api/systemInfo").reply(() => promise);
+
+    return (startQtrYYYYQ, endQtrYYYYQ) => {
+      resolve([
+        200,
+        { ...systemInfoFixtures.showingNeither, startQtrYYYYQ, endQtrYYYYQ },
+      ]);
+    };
+  };
+
+  const expectDownloadForDisplayedQuarter = async (enrollmentForm) => {
+    const { click } = mockEnrollmentDownload();
+    axiosMock
+      .onGet(enrollmentEndpoint)
+      .reply(200, new Blob(["yyyyq,enrollment\n"], { type: "text/csv" }), {
+        "Content-Type": "text/csv",
+      });
+    const displayedQuarter = enrollmentForm.getByRole("combobox", {
+      name: "Quarter",
+    }).value;
+
+    fireEvent.click(
+      enrollmentForm.getByRole("button", { name: "Download CSV" }),
+    );
+
+    await waitFor(() => expect(click).toHaveBeenCalledTimes(1));
+    const requests = axiosMock.history.get.filter(
+      ({ url }) => url === enrollmentEndpoint,
+    );
+    expect(requests).toHaveLength(1);
+    expect(requests[0].params).toEqual({ yyyyq: displayedQuarter });
+  };
+
+  test("downloads the default enrollment quarter without a manual selection", async () => {
+    const enrollmentForm = openEnrollmentForm();
+
+    await enrollmentForm.findByRole("option", { name: "W24" });
+    expect(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+    ).toHaveValue("20241");
+    await expectDownloadForDisplayedQuarter(enrollmentForm);
+  });
+
+  test("synchronizes the default enrollment quarter when system info replaces the placeholders", async () => {
+    const resolveSystemInfo = deferSystemInfo();
+    const enrollmentForm = openEnrollmentForm();
+    expect(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+    ).toHaveValue("20221");
+
+    resolveSystemInfo("20241", "20242");
+
+    await enrollmentForm.findByRole("option", { name: "W24" });
+    expect(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+    ).toHaveValue("20241");
+    await expectDownloadForDisplayedQuarter(enrollmentForm);
+  });
+
+  test("preserves a manually selected enrollment quarter when it remains available", async () => {
+    const resolveSystemInfo = deferSystemInfo();
+    const enrollmentForm = openEnrollmentForm();
+    fireEvent.change(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+      {
+        target: { value: "20222" },
+      },
+    );
+
+    resolveSystemInfo("20221", "20224");
+
+    await enrollmentForm.findByRole("option", { name: "F22" });
+    expect(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+    ).toHaveValue("20222");
+    await expectDownloadForDisplayedQuarter(enrollmentForm);
+  });
+
+  test("downloads a valid replacement when the selected enrollment quarter becomes unavailable", async () => {
+    const resolveSystemInfo = deferSystemInfo();
+    const enrollmentForm = openEnrollmentForm();
+    const quarterDropdown = enrollmentForm.getByRole("combobox", {
+      name: "Quarter",
+    });
+    fireEvent.change(quarterDropdown, { target: { value: "20222" } });
+    expect(quarterDropdown).toHaveValue("20222");
+
+    resolveSystemInfo("20231", "20232");
+
+    await enrollmentForm.findByRole("option", { name: "W23" });
+    expect(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+    ).toHaveValue("20231");
+    await expectDownloadForDisplayedQuarter(enrollmentForm);
+  });
+
+  test("keeps the replacement enrollment quarter when the previous choice becomes available again", async () => {
+    const queryClient = new QueryClient();
+    const enrollmentForm = openEnrollmentForm(queryClient);
+    await enrollmentForm.findByRole("option", { name: "S24" });
+    fireEvent.change(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+      {
+        target: { value: "20242" },
+      },
+    );
+
+    act(() => {
+      queryClient.setQueryData("systemInfo", {
+        ...systemInfoFixtures.showingNeither,
+        startQtrYYYYQ: "20244",
+        endQtrYYYYQ: "20251",
+      });
+    });
+    await enrollmentForm.findByRole("option", { name: "F24" });
+    expect(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+    ).toHaveValue("20244");
+
+    act(() => {
+      queryClient.setQueryData("systemInfo", {
+        ...systemInfoFixtures.showingNeither,
+        startQtrYYYYQ: "20241",
+        endQtrYYYYQ: "20251",
+      });
+    });
+    await enrollmentForm.findByRole("option", { name: "S24" });
+    expect(
+      enrollmentForm.getByRole("combobox", { name: "Quarter" }),
+    ).toHaveValue("20244");
+    await expectDownloadForDisplayedQuarter(enrollmentForm);
+  });
+
   test("uses dropdowns for quarters, subject area, and course level", async () => {
     renderPage();
 
-    expect(await screen.findAllByLabelText("Quarter")).toHaveLength(2);
-    const subjectAreaDropdown = screen.getByLabelText("Subject Area");
-    const levelDropdown = screen.getByLabelText("Course Level");
+    const byQuarterForm = within(
+      screen.getByTestId("CSVDownloads.Quarter").closest("form"),
+    );
+    const bySubjectForm = within(
+      screen.getByTestId("CSVDownloads.SubjectQuarter").closest("form"),
+    );
+    expect(byQuarterForm.getByLabelText("Quarter")).toHaveAttribute(
+      "id",
+      "CSVDownloads.Quarter",
+    );
+    expect(bySubjectForm.getByLabelText("Quarter")).toHaveAttribute(
+      "id",
+      "CSVDownloads.SubjectQuarter",
+    );
+    const subjectAreaDropdown = bySubjectForm.getByLabelText("Subject Area");
+    const levelDropdown = bySubjectForm.getByLabelText("Course Level");
     expect(subjectAreaDropdown).toBeInTheDocument();
     expect(levelDropdown).toBeInTheDocument();
-    expect(screen.getByLabelText("Omit sections")).toBeChecked();
+    expect(bySubjectForm.getByLabelText("Omit sections")).toBeChecked();
     expect(
-      screen.getByLabelText("Only include courses with times or locations"),
+      bySubjectForm.getByLabelText(
+        "Only include courses with times or locations",
+      ),
     ).toBeChecked();
 
     expect(screen.getByTestId("CSVDownloads.Level-option-0")).toHaveValue("U");
@@ -178,11 +565,8 @@ describe("CSVDownloadsPage tests", () => {
     const { assignMock, browserLocation } = mockLocationAssign();
     renderPage(browserLocation);
 
-    const quarterDropdown = (await screen.findAllByLabelText("Quarter"))[0];
-    const byQuarterButton = screen.getAllByRole("button", {
-      name: "Download CSV",
-    })[0];
-    const byQuarterForm = byQuarterButton.closest("form");
+    const quarterDropdown = await screen.findByTestId("CSVDownloads.Quarter");
+    const byQuarterForm = quarterDropdown.closest("form");
 
     fireEvent.change(quarterDropdown, { target: { value: "20242" } });
     fireEvent.submit(byQuarterForm);
@@ -212,13 +596,8 @@ describe("CSVDownloadsPage tests", () => {
       }),
     );
 
-    const allDownloadButtons = screen.getAllByRole("button", {
-      name: "Download CSV",
-    });
-    const byQuarterAndSubjectButton = allDownloadButtons[1];
-    const byQuarterAndSubjectForm = byQuarterAndSubjectButton.closest("form");
-
-    const quarterDropdown = screen.getAllByLabelText("Quarter")[1];
+    const quarterDropdown = screen.getByTestId("CSVDownloads.SubjectQuarter");
+    const byQuarterAndSubjectForm = quarterDropdown.closest("form");
     const subjectAreaDropdown = screen.getByLabelText("Subject Area");
     const levelDropdown = screen.getByLabelText("Course Level");
     const omitSectionsCheckbox = screen.getByLabelText("Omit sections");
@@ -261,10 +640,9 @@ describe("CSVDownloadsPage tests", () => {
       ).toBeInTheDocument(),
     );
 
-    const byQuarterAndSubjectButton = screen.getAllByRole("button", {
-      name: "Download CSV",
-    })[1];
-    fireEvent.submit(byQuarterAndSubjectButton.closest("form"));
+    fireEvent.submit(
+      screen.getByTestId("CSVDownloads.SubjectQuarter").closest("form"),
+    );
 
     await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
     expect(assignMock).toHaveBeenCalledWith(
