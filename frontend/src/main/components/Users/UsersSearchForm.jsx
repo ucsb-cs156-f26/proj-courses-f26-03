@@ -1,10 +1,12 @@
 import { Container, Row, Col } from "react-bootstrap";
 import GenericDropdown from "main/components/Utils/GenericDropdown";
+import UsersSearchBar from "main/components/Users/UsersSearchBar";
 
 const UsersSearchForm = ({
   updateSortField,
   updateSortDirection,
   updatePageSize,
+  updateSearch,
 }) => {
   // Stryker disable all ; testing for specific hard coded lists is just writing the code twice
   const sortFields = ["email", "givenName", "familyName"];
@@ -38,6 +40,9 @@ const UsersSearchForm = ({
             controlId={"UsersSearch.PageSize"}
             label="Page Size"
           />
+        </Col>
+        <Col md="auto">
+          <UsersSearchBar updateSearch={updateSearch} />
         </Col>
       </Row>
     </Container>
