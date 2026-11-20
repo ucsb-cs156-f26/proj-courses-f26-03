@@ -17,8 +17,8 @@ so that it can be merged into the <https://github.com/ucsb-cs156/proj-courses/> 
 
 | Type | Link       | 
 |------|------------|
-| prod | <https://proj-courses.dokku-03.cs.ucsb.edu/> | 
-| qa | <https://proj-courses-qa.dokku-03.cs.ucsb.edu/>  | 
+| prod | <https://courses.dokku-03.cs.ucsb.edu/> | 
+| qa | <https://courses-qa.dokku-03.cs.ucsb.edu/>  | 
 
 
 # Setup before running application
