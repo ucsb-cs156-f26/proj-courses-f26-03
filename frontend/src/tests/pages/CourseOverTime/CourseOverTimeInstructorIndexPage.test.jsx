@@ -9,7 +9,7 @@ import * as useBackend from "main/utils/useBackend.jsx";
 import CourseOverTimeInstructorIndexPage from "main/pages/CourseOverTime/CourseOverTimeInstructorIndexPage";
 import { apiCurrentUserFixtures } from "fixtures/currentUserFixtures";
 import { systemInfoFixtures } from "fixtures/systemInfoFixtures";
-import { oneSection, threeSections } from "fixtures/sectionFixtures";
+import primaryFixtures from "fixtures/primaryFixtures";
 import { allTheSubjects } from "fixtures/subjectFixtures";
 import userEvent from "@testing-library/user-event";
 
@@ -58,7 +58,7 @@ describe("CourseOverTimeInstructorIndexPage tests", () => {
     axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
     axiosMock
       .onGet("/api/public/courseovertime/instructorsearch")
-      .reply(200, threeSections);
+      .reply(200, primaryFixtures.f24_math_lowerDiv);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -105,7 +105,7 @@ describe("CourseOverTimeInstructorIndexPage tests", () => {
       [],
     );
 
-    expect(screen.getByText("COMP ENGR SEMINAR")).toBeInTheDocument();
+    expect(screen.getAllByText("CALC W/ ALG & TRIG").length).toBeGreaterThan(0);
     expect(await screen.findByRole("alert")).toHaveTextContent(missingWarning);
     expect(axiosMock.history.post[0].params).toEqual({
       startQtr: "20222",
@@ -228,7 +228,14 @@ describe("CourseOverTimeInstructorIndexPage tests", () => {
     axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
     axiosMock.onGet("/api/public/courseovertime/instructorsearch").reply(() => {
       return new Promise((resolve) => {
-        setTimeout(() => resolve([200, oneSection]), 100);
+        setTimeout(
+          () =>
+            resolve([
+              200,
+              primaryFixtures.singleLectureSectionWithNoDiscussion,
+            ]),
+          100,
+        );
       });
     });
 
@@ -254,7 +261,7 @@ describe("CourseOverTimeInstructorIndexPage tests", () => {
       expect(screen.getByText(/Loading courses.../i)).toBeInTheDocument();
     });
 
-    expect(screen.queryByText("CourseId")).not.toBeInTheDocument();
+    expect(screen.queryByText("Course ID")).not.toBeInTheDocument();
     expect(screen.queryByText("ADV APP PROGRAM")).not.toBeInTheDocument();
 
     await waitFor(() => {
@@ -262,14 +269,14 @@ describe("CourseOverTimeInstructorIndexPage tests", () => {
     });
 
     expect(screen.queryByText(/Loading courses.../i)).not.toBeInTheDocument();
-    expect(screen.getByText("CourseId")).toBeInTheDocument();
+    expect(screen.getByText("Course ID")).toBeInTheDocument();
   });
 
   test("displays course table when search returns results", async () => {
     axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
     axiosMock
       .onGet("/api/public/courseovertime/instructorsearch")
-      .reply(200, oneSection);
+      .reply(200, primaryFixtures.singleLectureSectionWithNoDiscussion);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -290,19 +297,22 @@ describe("CourseOverTimeInstructorIndexPage tests", () => {
     await userEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText("CourseId")).toBeInTheDocument();
+      expect(screen.getByText("Course ID")).toBeInTheDocument();
     });
 
     expect(
       screen.queryByText(/No courses were found with the specified criteria./i),
     ).not.toBeInTheDocument();
 
-    expect(screen.getByText("CourseId")).toBeInTheDocument();
+    expect(screen.getByText("Course ID")).toBeInTheDocument();
     expect(screen.getByText("Title")).toBeInTheDocument();
     expect(screen.getByText("Session")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("SectionsTable-expand-all-rows"),
+    ).toBeInTheDocument();
   });
 
-  test("does not display ConvertedSectionTable when search returns empty results", async () => {
+  test("does not display SectionsTable when search returns empty results", async () => {
     axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
     axiosMock
       .onGet("/api/public/courseovertime/instructorsearch")
@@ -332,7 +342,7 @@ describe("CourseOverTimeInstructorIndexPage tests", () => {
       ).toBeInTheDocument();
     });
 
-    expect(screen.queryByText("CourseId")).not.toBeInTheDocument();
+    expect(screen.queryByText("Course ID")).not.toBeInTheDocument();
     expect(screen.queryByText("Title")).not.toBeInTheDocument();
   });
 });
