@@ -27,6 +27,7 @@ describe("CourseOverTimeDescriptionIndexPage tests", () => {
 
   beforeEach(() => {
     axiosMock.resetHistory();
+    axiosMock.onPost("/api/public/course-data/ensure").reply(200, []);
     axiosMock
       .onGet("/api/currentUser")
       .reply(200, apiCurrentUserFixtures.userOnly);
@@ -47,6 +48,11 @@ describe("CourseOverTimeDescriptionIndexPage tests", () => {
   });
 
   test("calls UCSB Course description search api correctly with 3 section response", async () => {
+    const missingWarning =
+      "Course data for MATH in quarter 20222 has not been loaded. A background update is scheduled or already running. Please check back in 5 minutes.";
+    axiosMock
+      .onPost("/api/public/course-data/ensure")
+      .reply(200, [missingWarning]);
     const useBackendMutationSpy = vi.spyOn(useBackend, "useBackendMutation");
     axiosMock.onGet("/api/public/description/search").reply(200, threeSections);
 
@@ -95,5 +101,11 @@ describe("CourseOverTimeDescriptionIndexPage tests", () => {
 
     expect(screen.getByText("COMP ENGR SEMINAR")).toBeInTheDocument();
     expect(screen.getByText("Session")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(missingWarning);
+    expect(axiosMock.history.post[0].params).toEqual({
+      startQtr: "20222",
+      endQtr: "20222",
+      subjectArea: undefined,
+    });
   });
 });

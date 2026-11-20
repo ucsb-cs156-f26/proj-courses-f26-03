@@ -7,13 +7,37 @@ import edu.ucsb.cs156.courses.entities.EnrollmentDataPoint;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
 @DataJpaTest
 public class EnrollmentDataPointRepositoryTests {
 
   @Autowired EnrollmentDataPointRepository enrollmentDataPointRepository;
+  @Autowired TestEntityManager entityManager;
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(ints = {0})
+  void unknownAndZeroEnrollmentRemainDistinctAfterDatabaseRoundTrip(Integer enrollment) {
+    EnrollmentDataPoint point =
+        dataPoint("20264", "12345", "CH ST   101 -1", "0100", 0, "2026-11-11T12:00:00");
+    point.setEnrollment(enrollment);
+    enrollmentDataPointRepository.save(point);
+    entityManager.flush();
+    entityManager.clear();
+
+    List<EnrollmentDataPoint> history =
+        enrollmentDataPointRepository.findByQuarterRangeAndCourseIdAndOptionalFilters(
+            "20264", "20264", "CH ST   101", "12345", "0100");
+
+    assertEquals(1, history.size());
+    assertEquals(enrollment, history.get(0).getEnrollment());
+  }
 
   @Test
   public void findByQuarterRangeAndCourseIdAndOptionalFilters_finds_course_history_in_date_order() {

@@ -27,6 +27,7 @@ describe("CourseOverTimeIndexPage tests", () => {
 
   beforeEach(() => {
     axiosMock.resetHistory();
+    axiosMock.onPost("/api/public/course-data/ensure").reply(200, []);
     axiosMock
       .onGet("/api/currentUser")
       .reply(200, apiCurrentUserFixtures.userOnly);
@@ -47,6 +48,11 @@ describe("CourseOverTimeIndexPage tests", () => {
   });
 
   test("calls UCSB Course over time search api correctly with 3 section response", async () => {
+    const missingWarning =
+      "Course data for MATH in quarter 20222 has not been loaded. A background update is scheduled or already running. Please check back in 5 minutes.";
+    axiosMock
+      .onPost("/api/public/course-data/ensure")
+      .reply(200, [missingWarning]);
     axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
     axiosMock
       .onGet("/api/public/courseovertime/search")
@@ -93,6 +99,12 @@ describe("CourseOverTimeIndexPage tests", () => {
     });
 
     expect(screen.getAllByText("CALC W/ ALG & TRIG").length).toBeGreaterThan(0);
+    expect(await screen.findByRole("alert")).toHaveTextContent(missingWarning);
+    expect(axiosMock.history.post[0].params).toEqual({
+      startQtr: "20222",
+      endQtr: "20222",
+      subjectArea: "ANTH",
+    });
   });
 
   test("displays 'No courses found' message when search returns empty results", async () => {

@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import edu.ucsb.cs156.courses.entities.EnrollmentDataPoint;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class EnrollmentCSVTests {
 
@@ -35,8 +38,10 @@ public class EnrollmentCSVTests {
     csv.equals(new EnrollmentCSV());
   }
 
-  @Test
-  void testFromEntity() {
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(ints = {0, 120})
+  void testFromEntity(Integer enrollment) {
     LocalDateTime now = LocalDateTime.now();
     EnrollmentDataPoint edp = new EnrollmentDataPoint();
     edp.setId(9L);
@@ -44,7 +49,7 @@ public class EnrollmentCSVTests {
     edp.setEnrollCd("9999");
     edp.setCourseId("CMPSC 130A");
     edp.setSection("0200");
-    edp.setEnrollment(120);
+    edp.setEnrollment(enrollment);
     edp.setDateCreated(now);
 
     EnrollmentCSV csv = EnrollmentCSV.fromEntity(edp);
@@ -54,7 +59,7 @@ public class EnrollmentCSVTests {
     assertEquals("9999", csv.getEnrollCd());
     assertEquals("CMPSC 130A", csv.getCourseId());
     assertEquals("0200", csv.getSection());
-    assertEquals(120, csv.getEnrollment());
+    assertEquals(enrollment, csv.getEnrollment());
     assertEquals(now, csv.getDateCreated());
   }
 }

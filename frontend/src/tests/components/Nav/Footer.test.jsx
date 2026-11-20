@@ -141,25 +141,17 @@ describe("Footer tests", () => {
     ).not.toBeInTheDocument();
   });
 
-  test("Feedback modal closes when the header Close button is clicked", () => {
-    render(<Footer systemInfo={systemInfoFixtures.withFeedbackUrl} />);
+  test.each(["Close", "Open Feedback Form"])(
+    "Feedback modal closes when %s is clicked",
+    (name) => {
+      render(<Footer systemInfo={systemInfoFixtures.withFeedbackUrl} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Provide Feedback" }));
-    expect(screen.getByRole("dialog")).toBeVisible();
+      fireEvent.click(screen.getByTestId("footer-feedback-button"));
+      expect(screen.getByRole("dialog")).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+      fireEvent.click(screen.getByRole("button", { name }));
 
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  test("Feedback modal closes when the Open Feedback Form link is clicked", () => {
-    render(<Footer systemInfo={systemInfoFixtures.withFeedbackUrl} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Provide Feedback" }));
-    expect(screen.getByRole("dialog")).toBeVisible();
-
-    fireEvent.click(screen.getByRole("button", { name: "Open Feedback Form" }));
-
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    },
+  );
 });
