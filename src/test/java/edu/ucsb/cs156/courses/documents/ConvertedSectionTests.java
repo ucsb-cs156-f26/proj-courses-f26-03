@@ -11,6 +11,9 @@ import java.util.List;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ContextConfiguration;
@@ -36,20 +39,23 @@ public class ConvertedSectionTests {
     assertEquals(cs1, cs2);
   }
 
-  @Test
-  public void test_EnrollmentDataPoint() throws JsonProcessingException {
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(ints = {0, 142})
+  public void test_EnrollmentDataPoint(Integer enrollment) throws JsonProcessingException {
     List<ConvertedSection> cs =
         mapper.readValue(
             CoursePageFixtures.CONVERTED_SECTIONS_JSON_MATH3B,
             new TypeReference<List<ConvertedSection>>() {});
 
     ConvertedSection cs1 = cs.get(0);
+    cs1.getSection().setEnrolledTotal(enrollment);
     EnrollmentDataPoint edp = cs1.getEnrollmentDataPoint();
     assertEquals("20222", edp.getYyyyq());
     assertEquals("30395", edp.getEnrollCd());
     assertEquals("MATH      3B -1", edp.getCourseId());
     assertEquals("0100", edp.getSection());
-    assertEquals(142, edp.getEnrollment());
+    assertEquals(enrollment, edp.getEnrollment());
   }
 
   @Test

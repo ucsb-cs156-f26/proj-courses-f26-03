@@ -62,6 +62,50 @@ describe("CourseOverTimeBuildingsSearchForm tests", () => {
     });
   });
 
+  test("refresh finds newly loaded classrooms without changing the filters or submitting", async () => {
+    localStorage.setItem("CourseOverTimeBuildingsSearch.Quarter", "20232");
+    localStorage.setItem("CourseOverTimeBuildingsSearch.BuildingCode", "BRDA");
+    const endpoint = "/api/public/courseovertime/buildingsearch/classrooms";
+    axiosMock.onGet(endpoint).reply(200, []);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseOverTimeBuildingsSearchForm fetchJSON={mockFn} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await waitFor(() =>
+      expect(
+        axiosMock.history.get.filter((r) => r.url === endpoint),
+      ).toHaveLength(1),
+    );
+    expect(screen.getByLabelText("Classroom")).toBeDisabled();
+    axiosMock.onGet(endpoint).reply(200, ["101", "102"]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Refresh classrooms" }),
+    );
+    expect(
+      await screen.findByRole("option", { name: "101" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Classroom")).toBeEnabled();
+    await userEvent.selectOptions(screen.getByLabelText("Classroom"), "102");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Refresh classrooms" }),
+    );
+    await waitFor(() =>
+      expect(
+        axiosMock.history.get.filter((r) => r.url === endpoint),
+      ).toHaveLength(3),
+    );
+    expect(screen.getByLabelText("Quarter")).toHaveValue("20232");
+    expect(screen.getByLabelText("Building Name")).toHaveValue("BRDA");
+    expect(screen.getByLabelText("Classroom")).toHaveValue("102");
+    expect(
+      axiosMock.history.get.filter((r) => r.url === endpoint).at(-1).params,
+    ).toEqual({ quarter: "20232", buildingCode: "BRDA" });
+    expect(mockFn).not.toHaveBeenCalled();
+  });
+
   test("renders without crashing", () => {
     render(
       <QueryClientProvider client={queryClient}>
