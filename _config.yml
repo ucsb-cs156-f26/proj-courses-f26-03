@@ -23,4 +23,4 @@ repo_name: "TBD"
 repo: ucsb-cs156-f26/proj-courses-f26-03
 owner: ucsb-cs156-f26
 repo_name: proj-courses-f26-03
-pull_requests: [{"author":{"id":"MDQ6VXNlcjgxOTMzOTg0","is_bot":false,"login":"jw-x11","name":"Junxi Wu"},"headRefName":"jw-x11-patch-1","number":45,"title":"Rename project and update environment links","url":"https://github.com/ucsb-cs156-f26/proj-courses-f26-03/pull/45"}]
+pull_requests: []
